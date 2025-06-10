@@ -8,6 +8,7 @@ export interface Transaction {
   status: 'paid' | 'pending';
   frequency: 'once' | 'monthly' | 'installment';
   startDate?: string;
+  endDate?: string;
   totalAmount?: number;
   totalInstallments?: number;
   currentInstallment?: number;
