@@ -7,17 +7,20 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import HomeScreen from './src/screens/HomeScreen';
 import AddTransactionScreen from './src/screens/AddTransactionScreen';
+import TransactionDetailScreen from './src/screens/TransactionDetailScreen'; // <--- Nova Importação
+import Toast from 'react-native-toast-message';
 
 const Stack = createNativeStackNavigator();
 
 export type RootStackParamList = {
   Home: undefined;
   AddTransaction: undefined;
+  // A tela de detalhes vai receber um ID da transação como parâmetro
+  TransactionDetail: { transactionId: string }; // <--- Novo Tipo de Rota
 };
 
 export default function App() {
   return (
-    // Envolve tudo com SafeAreaView
     <SafeAreaView style={styles.safeArea}>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Home">
@@ -31,8 +34,14 @@ export default function App() {
             component={AddTransactionScreen}
             options={{ title: 'Novo Lançamento' }}
           />
+          <Stack.Screen // <--- Nova Rota
+            name="TransactionDetail"
+            component={TransactionDetailScreen}
+            options={{ title: 'Detalhes do Lançamento' }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
+      <Toast />
     </SafeAreaView>
   );
 }
@@ -40,6 +49,6 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f8f8', // Garante que a cor de fundo da área segura seja a mesma do app
+    backgroundColor: '#f8f8f8',
   },
 });

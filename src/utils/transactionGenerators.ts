@@ -1,4 +1,18 @@
-import { Transaction } from '../types'; // Mantenha apenas a importação de Transaction
+// src/utils/transactionGenerators.ts
+import { Transaction, RecurringTransaction, InstallmentTransaction } from '../types';
+
+// Funções auxiliares para parsear e formatar datas
+const parseDateString = (dateString: string): Date => {
+  // Assume formato DD/MM/YYYY. Divide, inverte e junta para YYYY-MM-DD
+  const [day, month, year] = dateString.split('/');
+  return new Date(`${year}-${month}-${day}`);
+};
+
+// Se você já tem as datas no formato YYYY-MM-DD no mock e no AddTransactionScreen
+// então new Date(dateString) já deve funcionar.
+// No entanto, se o log mostra DD/MM/YYYY, a função acima é necessária.
+// Estou ajustando para usar parseDateString para ser robusto com o formato DD/MM/YYYY.
+
 
 /**
  * Gera as ocorrências de transações para um mês específico.
@@ -17,66 +31,60 @@ export const generateMonthlyTransactions = (
   const monthlyTransactions: Transaction[] = [];
 
   allTransactions.forEach(trans => {
+
     // Transações Únicas
     if (trans.frequency === 'once') {
-      const transactionDate = new Date(trans.date);
+      const transactionDate = parseDateString(trans.date); // Use parseDateString aqui
       if (transactionDate.getMonth() === targetMonth && transactionDate.getFullYear() === targetYear) {
         monthlyTransactions.push(trans);
       }
     }
 
     // Transações Recorrentes (Mensais)
-    // Não precisa de type assertion 'as RecurringTransaction'
     else if (trans.frequency === 'monthly') {
-      // trans já é do tipo Transaction. Os campos startDate e endDate são opcionais nela.
-      const startDate = trans.startDate ? new Date(trans.startDate) : new Date();
+      const recurringTrans = trans as RecurringTransaction;
+      const startDate = parseDateString(recurringTrans.startDate); // Use parseDateString aqui
 
       const hasStarted =
         startDate.getFullYear() < targetYear ||
         (startDate.getFullYear() === targetYear && startDate.getMonth() <= targetMonth);
 
-      // Acesse trans.endDate diretamente
-      const hasNotEnded = !trans.endDate ||
-        (new Date(trans.endDate).getFullYear() > targetYear ||
-         (new Date(trans.endDate).getFullYear() === targetYear && new Date(trans.endDate).getMonth() >= targetMonth));
+      const hasNotEnded = !recurringTrans.endDate ||
+        (parseDateString(recurringTrans.endDate).getFullYear() > targetYear || // Use parseDateString aqui
+         (parseDateString(recurringTrans.endDate).getFullYear() === targetYear && parseDateString(recurringTrans.endDate).getMonth() >= targetMonth));
 
       if (hasStarted && hasNotEnded) {
-        // Crie uma instância da transação para o mês atual
-        const monthlyInstance: Transaction = { // Use Transaction aqui
-          ...trans, // Use 'trans' diretamente
+        const monthlyInstance: Transaction = {
+          ...recurringTrans,
+          // Ajusta o dia para evitar problemas em meses com menos dias (ex: 31 de jan para fev)
           date: new Date(targetYear, targetMonth, Math.min(startDate.getDate(), new Date(targetYear, targetMonth + 1, 0).getDate())).toISOString().split('T')[0],
-          id: `${trans.id}-${targetYear}-${targetMonth}`,
+          id: `${recurringTrans.id}-${targetYear}-${targetMonth}`,
         };
         monthlyTransactions.push(monthlyInstance);
       }
     }
 
     // Transações Parceladas
-    // Não precisa de type assertion 'as InstallmentTransaction'
     else if (trans.frequency === 'installment') {
-      // trans já é do tipo Transaction. Os campos originalPurchaseDate, totalInstallments, etc. são opcionais nela.
-      const originalPurchaseDate = trans.originalPurchaseDate
-        ? new Date(trans.originalPurchaseDate)
-        : new Date();
+      const installmentTrans = trans as InstallmentTransaction;
+      const originalPurchaseDate = parseDateString(installmentTrans.originalPurchaseDate); // Use parseDateString aqui
 
       const diffMonths =
         (targetYear - originalPurchaseDate.getFullYear()) * 12 +
         (targetMonth - originalPurchaseDate.getMonth());
 
-      // Verifique se totalInstallments é definido antes de usar
       if (
-        trans.totalInstallments !== undefined &&
         diffMonths >= 0 &&
-        diffMonths < trans.totalInstallments
+        diffMonths < installmentTrans.totalInstallments
       ) {
         const currentCalculatedInstallment = diffMonths + 1;
 
-        // Crie uma instância da parcela para o mês atual
-        const installmentInstance: Transaction = { // Use Transaction aqui
-          ...trans, // Use 'trans' diretamente
+        const installmentInstance: Transaction = {
+          ...installmentTrans,
           currentInstallment: currentCalculatedInstallment,
+          // Ajusta o dia para evitar problemas em meses com menos dias
           date: new Date(targetYear, targetMonth, Math.min(originalPurchaseDate.getDate(), new Date(targetYear, targetMonth + 1, 0).getDate())).toISOString().split('T')[0],
-          id: `${trans.id}-${targetYear}-${targetMonth}`,
+          id: `${installmentTrans.id}-${targetYear}-${targetMonth}`,
         };
         monthlyTransactions.push(installmentInstance);
       }

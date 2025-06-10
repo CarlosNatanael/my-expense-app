@@ -3,13 +3,16 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert,
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
-import { Transaction, TransactionType } from '../../types'; // Importe os tipos
-import { addTransaction } from '../../data/transactions'; // Importe a função para adicionar transações
-import { v4 as uuidv4 } from 'uuid'; // Para gerar IDs únicos (precisa instalar)
+import { Transaction, TransactionType } from '../../types';
+import { addTransaction } from '../../data/transactions';
+import { v4 as uuidv4 } from 'uuid';
 
 // Importe o DateTimePicker e Picker
-import DateTimePicker from '@react-native-community/datetimepicker'; // Para selecionar data
-import { Picker } from '@react-native-picker/picker'; // Para selecionar categoria/tipo (se preferir)
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Picker } from '@react-native-picker/picker';
+
+// Para o feedback de sucesso (Toast/SnackBar)
+import Toast from 'react-native-toast-message';
 
 // Tipando as props de navegação
 type AddTransactionScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddTransaction'>;
@@ -17,7 +20,7 @@ type AddTransactionScreenNavigationProp = StackNavigationProp<RootStackParamList
 // Definindo as categorias padrão (você pode expandir isso)
 const CATEGORIES = [
   'Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Educação',
-  'Contas', 'Salário', 'Compras', 'Outros'
+  'Contas', 'Salário', 'Compras', 'Cartão', 'Outros'
 ];
 
 const AddTransactionScreen: React.FC = () => {
@@ -25,25 +28,25 @@ const AddTransactionScreen: React.FC = () => {
 
   // Estados para os campos do formulário
   const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState(''); // Armazenar como string para TextInput
-  const [category, setCategory] = useState(CATEGORIES[0]); // Categoria inicial
-  const [type, setType] = useState<TransactionType>('expense'); // 'expense' ou 'income'
-  const [date, setDate] = useState(new Date()); // Data da transação
-  const [showDatePicker, setShowDatePicker] = useState(false); // Para controlar a visibilidade do date picker
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [type, setType] = useState<TransactionType>('expense');
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Estados para a frequência (única, parcelada, recorrente)
+  // Estados para a frequência
   const [frequency, setFrequency] = useState<'once' | 'installment' | 'monthly'>('once');
-  const [totalInstallments, setTotalInstallments] = useState(''); // Número de parcelas
-  const [totalAmountInstallment, setTotalAmountInstallment] = useState(''); // Valor total da compra parcelada
+  const [totalInstallments, setTotalInstallments] = useState('');
+  const [totalAmountInstallment, setTotalAmountInstallment] = useState('');
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || date;
-    setShowDatePicker(Platform.OS === 'ios'); // Fecha em iOS, Android já fecha
+    setShowDatePicker(Platform.OS === 'ios');
     setDate(currentDate);
   };
 
   const handleSaveTransaction = async () => {
-    const parsedAmount = parseFloat(amount.replace(',', '.')); // Converte para número float
+    const parsedAmount = parseFloat(amount.replace(',', '.'));
 
     if (!description || isNaN(parsedAmount) || parsedAmount <= 0) {
       Alert.alert('Erro', 'Preencha a descrição e um valor válido.');
@@ -56,11 +59,10 @@ const AddTransactionScreen: React.FC = () => {
     // Converte a data para o formato YYYY-MM-DD para salvar
     const formattedDate = date.toISOString().split('T')[0];
 
-    // Cria a transação base
     let newTransaction: Transaction = {
-      id: uuidv4(), // Gera um ID único
+      id: uuidv4(),
       description,
-      amount: parsedAmount, // Mantemos o amount como positivo para a interface base
+      amount: parsedAmount, // Mantém positivo aqui; o sinal é tratado na exibição/cálculo
       date: formattedDate,
       category,
       type,
@@ -79,13 +81,8 @@ const AddTransactionScreen: React.FC = () => {
         return;
       }
 
-      // Calcula o valor de uma única parcela
       const installmentAmount = parsedTotalAmountInstallment / parsedTotalInstallments;
 
-      // Cuidado aqui: para parceladas, o "amount" na lista é o da parcela
-      // Mas o "totalAmount" é o da compra original.
-      // O `amount` que vai ser usado na `FlatList` é o `installmentAmount`
-      // A `TransactionListItem` já está preparada para exibir `totalAmount` e `totalInstallments`
       newTransaction = {
         ...newTransaction,
         amount: installmentAmount, // Valor da parcela para exibição na lista
@@ -93,24 +90,38 @@ const AddTransactionScreen: React.FC = () => {
         totalInstallments: parsedTotalInstallments,
         currentInstallment: 1, // Assumimos que estamos adicionando a primeira parcela
         originalPurchaseDate: formattedDate, // Data da compra original
-        installmentGroupId: uuidv4(), // ID para agrupar todas as parcelas dessa compra
-      } as Transaction; // Type assertion para garantir que os campos opcionais são adicionados
-
-      // IMPORTANTE: Para despesas parceladas, você pode querer adicionar todas as parcelas de uma vez
-      // ou apenas a primeira e gerar as outras dinamicamente.
-      // Por enquanto, vamos adicionar apenas a primeira parcela para simplificar.
-      // A lógica de exibição em HomeScreen precisa evoluir para gerar as parcelas futuras.
+        installmentGroupId: uuidv4(),
+      };
     } else if (frequency === 'monthly') {
       newTransaction = {
         ...newTransaction,
         startDate: formattedDate, // Data de início da recorrência
-      } as Transaction;
+      };
     }
 
-    const updatedTransactions = await addTransaction(newTransaction);
-    console.log('Transação salva:', newTransaction);
-    // TODO: Recarregar transações na HomeScreen após salvar (usando useFocusEffect)
-    navigation.goBack(); // Volta para a tela anterior
+    try {
+      await addTransaction(newTransaction);
+      console.log('Transação salva:', newTransaction);
+      Toast.show({ // <--- Novo: Exibe uma mensagem de sucesso
+        type: 'success',
+        text1: 'Sucesso!',
+        text2: 'Lançamento salvo com êxito.',
+        visibilityTime: 2000,
+        autoHide: true,
+        topOffset: 30,
+      });
+      navigation.goBack(); // Volta para a tela anterior
+    } catch (error) {
+      console.error('Erro ao salvar transação:', error);
+      Toast.show({ // <--- Novo: Exibe uma mensagem de erro
+        type: 'error',
+        text1: 'Erro!',
+        text2: 'Não foi possível salvar o lançamento.',
+        visibilityTime: 3000,
+        autoHide: true,
+        topOffset: 30,
+      });
+    }
   };
 
   return (
@@ -249,7 +260,7 @@ const AddTransactionScreen: React.FC = () => {
         <Text style={styles.saveButtonText}>Salvar Lançamento</Text>
       </TouchableOpacity>
 
-      <View style={{ height: 50 }} />{/* Espaço para o final do scroll */}
+      <View style={{ height: 50 }} />
     </ScrollView>
   );
 };

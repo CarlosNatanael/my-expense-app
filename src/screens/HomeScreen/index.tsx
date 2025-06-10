@@ -10,23 +10,23 @@ import FilterTabs, { FilterType } from '../../components/FilterTabs';
 import TransactionListItem from '../../components/TransactionListItem';
 import { Transaction, TransactionType } from '../../types';
 import { getTransactions, populateWithMockData, saveTransactions } from '../../data/transactions';
-import { generateMonthlyTransactions } from '../../utils/transactionGenerators'; // Importe a nova função!
+import { generateMonthlyTransactions } from '../../utils/transactionGenerators';
 import FloatingActionButton from '../../components/FloatingActionButton';
 
 // Os dados mockados agora serão usados apenas para popular a primeira vez
 const INITIAL_MOCKED_TRANSACTIONS: Transaction[] = [
-  { id: '1', description: 'Futebol (Carlos)', amount: 50.00, date: '2025-06-06', category: 'Lazer', type: 'expense', status: 'paid', frequency: 'once' },
-  { id: '2', description: 'Pagamento Salário', amount: 5100.00, date: '2025-06-06', category: 'Salário', type: 'income', status: 'paid', frequency: 'once' },
-  { id: '3', description: 'Aluguel', amount: 490.00, date: '2025-01-09', category: 'Moradia', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '2025-01-01' },
-  { id: '4', description: 'Mãe', amount: 200.00, date: '2025-06-09', category: 'Outros', type: 'expense', status: 'paid', frequency: 'once' },
-  { id: '5', description: 'Internet', amount: 109.90, date: '2025-01-12', category: 'Contas', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '2025-01-01' },
-  { id: '6', description: 'Plano Chip (Carlos)', amount: 29.99, date: '2025-01-12', category: 'Contas', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '2025-01-01' },
-  { id: '7', description: 'Plano Chip (Marcela)', amount: 40.00, date: '2025-01-13', category: 'Contas', type: 'expense', status: 'pending', frequency: 'monthly', startDate: '2025-01-01' },
-  { id: '8', description: 'Cartão Picpay (Carlos)', amount: 400.00, date: '2025-06-15', category: 'Outros', type: 'expense', status: 'paid', frequency: 'once' },
-  { id: '9', description: 'Condomínio', amount: 160.00, date: '2025-01-15', category: 'Moradia', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '2025-01-01' },
-  // Importante: A data original da compra e o formato YYYY-MM-DD
-  { id: '10', description: 'Magalu Carne', amount: 251.37, date: '2025-03-18', category: 'Compras', type: 'expense', status: 'paid', frequency: 'installment', totalAmount: 3770.55, totalInstallments: 15, currentInstallment: 1, originalPurchaseDate: '2025-03-18', installmentGroupId: 'magalu-carne-1' },
-  { id: '11', description: 'Banco do Brasil (Marcela)', amount: 730.00, date: '2025-06-26', category: 'Outros', type: 'expense', status: 'paid', frequency: 'once' },
+  // ... (Seus dados mockados existentes com datas no formato DD/MM/YYYY)
+  { id: '1', description: 'Futebol (Carlos)', amount: 50.00, date: '06/06/2025', category: 'Lazer', type: 'expense', status: 'paid', frequency: 'once' },
+  { id: '2', description: 'Pagamento Salário', amount: 5100.00, date: '06/06/2025', category: 'Salário', type: 'income', status: 'paid', frequency: 'once' },
+  { id: '3', description: 'Aluguel', amount: 490.00, date: '09/01/2025', category: 'Moradia', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '01/01/2025' },
+  { id: '4', description: 'Mãe', amount: 200.00, date: '09/06/2025', category: 'Outros', type: 'expense', status: 'paid', frequency: 'once' },
+  { id: '5', description: 'Internet', amount: 109.90, date: '12/01/2025', category: 'Contas', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '01/01/2025' },
+  { id: '6', description: 'Plano Chip (Carlos)', amount: 29.99, date: '12/01/2025', category: 'Contas', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '01/01/2025' },
+  { id: '7', description: 'Plano Chip (Marcela)', amount: 40.00, date: '13/01/2025', category: 'Contas', type: 'expense', status: 'pending', frequency: 'monthly', startDate: '01/01/2025' },
+  { id: '8', description: 'Cartão Picpay (Carlos)', amount: 400.00, date: '15/06/2025', category: 'Outros', type: 'expense', status: 'paid', frequency: 'once' },
+  { id: '9', description: 'Condomínio', amount: 160.00, date: '15/01/2025', category: 'Moradia', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '01/01/2025' },
+  { id: '10', description: 'Magalu Carne', amount: 251.37, date: '18/03/2025', category: 'Compras', type: 'expense', status: 'paid', frequency: 'installment', totalAmount: 3770.55, totalInstallments: 15, currentInstallment: 1, originalPurchaseDate: '18/03/2025', installmentGroupId: 'magalu-carne-1' },
+  { id: '11', description: 'Banco do Brasil (Marcela)', amount: 730.00, date: '26/06/2025', category: 'Outros', type: 'expense', status: 'paid', frequency: 'once' },
 ];
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
@@ -38,19 +38,14 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
 
   const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1)); // Junho de 2025 (mês 5 é junho)
   const [currentFilter, setCurrentFilter] = useState<FilterType>('all');
-  const [displayedTransactions, setDisplayedTransactions] = useState<Transaction[]>([]); // Transações geradas e filtradas
-  const [allStoredTransactions, setAllStoredTransactions] = useState<Transaction[]>([]); // Todas as transações salvas (mestres)
+  const [displayedTransactions, setDisplayedTransactions] = useState<Transaction[]>([]);
+  const [allStoredTransactions, setAllStoredTransactions] = useState<Transaction[]>([]);
 
-  // ATENÇÃO: As datas nos MOCKED_TRANSACTIONS foram ajustadas para YYYY-MM-DD
-  // e startDate/originalPurchaseDate para datas de início real, não do mês atual de exibição.
-
-  // Função para calcular o balanço, receitas e despesas
   const calculateFinancialSummary = useCallback((trans: Transaction[]) => {
     let income = 0;
     let expenses = 0;
 
     trans.forEach(t => {
-      // Ajusta o valor para ser sempre positivo na soma, se for despesa
       const amount = t.type === 'expense' ? Math.abs(t.amount) : t.amount;
       if (t.type === 'income') {
         income += amount;
@@ -65,7 +60,6 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
 
   const { income: totalIncome, expenses: totalExpenses, balance } = calculateFinancialSummary(displayedTransactions);
 
-  // Função para carregar TUDO e então gerar as transações para o mês atual
   const loadAndGenerateTransactions = useCallback(async () => {
     const loadedTransactions = await getTransactions();
     
@@ -77,7 +71,6 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
           await populateWithMockData(INITIAL_MOCKED_TRANSACTIONS);
           const reloadedTransactions = await getTransactions();
           setAllStoredTransactions(reloadedTransactions);
-          // Agora, geramos as transações para o mês a partir de reloadedTransactions
           const generated = generateMonthlyTransactions(reloadedTransactions, currentDate);
           const filtered = generated.filter(t => currentFilter === 'all' || t.type === currentFilter);
           setDisplayedTransactions(filtered);
@@ -86,20 +79,18 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
       return;
     }
 
-    setAllStoredTransactions(loadedTransactions); // Armazenar todas as transações mestres
+    setAllStoredTransactions(loadedTransactions);
     
-    // Gerar as transações para o mês atual a partir de todas as transações mestres
     const generated = generateMonthlyTransactions(loadedTransactions, currentDate);
     const filtered = generated.filter(t => currentFilter === 'all' || t.type === currentFilter);
     setDisplayedTransactions(filtered);
 
-  }, [currentDate, currentFilter]); // Dependências do useCallback
+  }, [currentDate, currentFilter]);
 
-  // Use useFocusEffect para recarregar sempre que a tela voltar ao foco
   useFocusEffect(
     useCallback(() => {
       loadAndGenerateTransactions();
-    }, [loadAndGenerateTransactions]) // Passa a função para o useFocusEffect
+    }, [loadAndGenerateTransactions])
   );
 
   const formatMonth = (date: Date) => {
@@ -128,13 +119,11 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
 
   const handleSelectFilter = (filter: FilterType) => {
     setCurrentFilter(filter);
-    // A lógica de geração e filtragem será re-executada via useFocusEffect/loadAndGenerateTransactions
-    // quando currentFilter mudar.
   };
 
   const handlePressTransactionItem = (transaction: Transaction) => {
-    // TODO: Implementar navegação para tela de detalhes da transação
-    console.log('Detalhes da transação:', transaction);
+    // Navega para a tela de detalhes, passando o ID da transação
+    navigation.navigate('TransactionDetail', { transactionId: transaction.id }); // <--- Novo: Passa o ID
   };
 
   const handleAddTransaction = () => {
@@ -162,8 +151,8 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
       />
 
       <FlatList
-        data={displayedTransactions} // Agora usa displayedTransactions
-        keyExtractor={(item) => item.id} // ID único para a instância
+        data={displayedTransactions}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TransactionListItem transaction={item} onPressItem={handlePressTransactionItem} />
         )}
