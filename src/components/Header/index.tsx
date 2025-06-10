@@ -1,13 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Para os ícones de seta e calendário
+import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 
 interface HeaderProps {
   currentMonth: string;
   balance: number;
   onPressPreviousMonth: () => void;
   onPressNextMonth: () => void;
-  onPressCalendar: () => void; // Para o ícone de calendário
+  onPressCalendar: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -17,8 +18,11 @@ const Header: React.FC<HeaderProps> = ({
   onPressNextMonth,
   onPressCalendar,
 }) => {
+    
+  const statusBarHeight = Constants.statusBarHeight;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: statusBarHeight + 10 }]}>{/* Adicione um padding extra de 10 */}
       {/* Top Section: Month Navigation and Calendar Icon */}
       <View style={styles.monthNavigationContainer}>
         <TouchableOpacity onPress={onPressPreviousMonth}>
@@ -46,13 +50,13 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: 20,
-    paddingTop: 10, // Ajuste conforme a barra de status do seu device
+    // Remova o paddingTop fixo que estava aqui antes (ex: paddingTop: 10,)
     paddingBottom: 15,
-    backgroundColor: '#fff', // Fundo branco como na UI
-    borderBottomLeftRadius: 20, // Bordas arredondadas na parte inferior
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    elevation: 3, // Sombra para Android
-    shadowColor: '#000', // Sombra para iOS
+    elevation: 3,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -60,9 +64,9 @@ const styles = StyleSheet.create({
   monthNavigationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center', // Centraliza as setas e o texto
+    justifyContent: 'center',
     marginBottom: 10,
-    position: 'relative', // Para posicionar o calendário absoluto
+    position: 'relative',
   },
   monthText: {
     fontSize: 18,
@@ -72,8 +76,8 @@ const styles = StyleSheet.create({
   },
   calendarIcon: {
     position: 'absolute',
-    right: 0, // Alinha à direita
-    padding: 5, // Área clicável
+    right: 0,
+    padding: 5,
   },
   balanceContainer: {
     alignItems: 'center',

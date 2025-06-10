@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 
 import React from 'react';
-import { StyleSheet } from 'react-native'; // <--- Verifique se você removeu 'Text' e 'View' daqui
+import { StyleSheet, SafeAreaView } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -17,24 +17,29 @@ export type RootStackParamList = {
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="AddTransaction"
-          component={AddTransactionScreen}
-          options={{ title: 'Novo Lançamento' }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    // Envolve tudo com SafeAreaView
+    <SafeAreaView style={styles.safeArea}>
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName="Home">
+          <Stack.Screen
+            name="Home"
+            component={HomeScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="AddTransaction"
+            component={AddTransactionScreen}
+            options={{ title: 'Novo Lançamento' }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaView>
   );
 }
 
-// Remova os estilos de App.tsx, eles não serão mais necessários aqui
 const styles = StyleSheet.create({
-  // Garanta que não há texto solto aqui, apenas propriedades de estilo
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f8f8', // Garante que a cor de fundo da área segura seja a mesma do app
+  },
 });
