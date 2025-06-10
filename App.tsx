@@ -1,33 +1,40 @@
+import 'react-native-gesture-handler';
+
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native'; // <--- Verifique se você removeu 'Text' e 'View' daqui
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-// Definimos o tipo para as props do nosso componente App (neste caso, não tem props, mas é uma boa prática)
-interface AppProps {
-  // Nenhuma propriedade por enquanto
-}
+import HomeScreen from './src/screens/HomeScreen';
+import AddTransactionScreen from './src/screens/AddTransactionScreen';
 
-// Usamos React.FC (Function Component) para tipar nosso componente
-const App: React.FC<AppProps> = () => {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Meu App de Despesas</Text>
-      <Text>Bem-vindo ao seu controle financeiro!</Text>
-    </View>
-  );
+const Stack = createNativeStackNavigator();
+
+export type RootStackParamList = {
+  Home: undefined;
+  AddTransaction: undefined;
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-});
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AddTransaction"
+          component={AddTransactionScreen}
+          options={{ title: 'Novo Lançamento' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
 
-export default App;
+// Remova os estilos de App.tsx, eles não serão mais necessários aqui
+const styles = StyleSheet.create({
+  // Garanta que não há texto solto aqui, apenas propriedades de estilo
+});
