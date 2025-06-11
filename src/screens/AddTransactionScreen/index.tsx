@@ -3,21 +3,18 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert,
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
-import { Transaction, TransactionType, TransactionStatus } from '../../types'; // Importe TransactionStatus
+import { Transaction, TransactionType, TransactionStatus } from '../../types';
 import { addTransaction, getTransactions, updateTransaction } from '../../data/transactions';
 import { v4 as uuidv4 } from 'uuid';
 
-// Importe o DateTimePicker e Picker
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import Toast from 'react-native-toast-message';
 
-// Tipando as props de rota (para receber o transactionId)
 type AddTransactionScreenRouteProp = RouteProp<RootStackParamList, 'AddTransaction'>;
 type AddTransactionScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddTransaction'>;
 
 
-// Definindo as categorias padrão (você pode expandir isso)
 const CATEGORIES = [
   'Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Educação',
   'Contas', 'Salário', 'Compras', 'Cartão', 'Outros'
@@ -30,7 +27,6 @@ const AddTransactionScreen: React.FC = () => {
   const route = useRoute<AddTransactionScreenRouteProp>();
   const transactionId = route.params?.transactionId;
 
-  // Estados para os campos do formulário
   const [id, setId] = useState(uuidv4());
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -42,29 +38,29 @@ const AddTransactionScreen: React.FC = () => {
 
   const [frequency, setFrequency] = useState<'once' | 'installment' | 'monthly'>('once');
   const [totalInstallments, setTotalInstallments] = useState('');
+  const [totalAmount, setTotalAmount] = useState(''); // Estado para o valor TOTAL da compra
   const [installmentFrequency, setInstallmentFrequency] = useState(INSTALLMENT_FREQUENCIES[0]);
-  const [totalAmount, setTotalAmount] = useState('');
 
   // Efeito para carregar dados da transação se estiver em modo de edição
   useEffect(() => {
     const loadTransactionForEdit = async () => {
       if (transactionId) {
         const allTransactions = await getTransactions();
-        // Buscar o registro mestre original
         const transactionToEdit = allTransactions.find(t => t.id === transactionId);
 
         if (transactionToEdit) {
           setId(transactionToEdit.id);
           setDescription(transactionToEdit.description);
-          setAmount(transactionToEdit.amount.toString().replace('.', ','));
+          setAmount(transactionToEdit.amount.toString().replace('.', ',')); // Valor da parcela para edição
           setCategory(transactionToEdit.category);
           setType(transactionToEdit.type);
           setDate(new Date(transactionToEdit.date));
           setFrequency(transactionToEdit.frequency);
-          setStatus(transactionToEdit.status); // <--- Carrega o status para edição
+          setStatus(transactionToEdit.status);
 
           if (transactionToEdit.frequency === 'installment') {
             setTotalInstallments(transactionToEdit.totalInstallments?.toString() || '');
+            setTotalAmount(transactionToEdit.totalAmount?.toFixed(2).replace('.', ',') || ''); // <--- CORREÇÃO AQUI: Inicializa totalAmount
             setInstallmentFrequency(transactionToEdit.installmentFrequency || INSTALLMENT_FREQUENCIES[0]);
           }
         } else {
@@ -83,17 +79,13 @@ const AddTransactionScreen: React.FC = () => {
   };
 
   const handleSaveTransaction = async () => {
-    const parsedAmount = parseFloat(amount.replace(',', '.'));
+    const parsedAmount = parseFloat(amount.replace(',', '.')); // Valor da parcela (ou valor único/recorrente)
 
     if (!description || isNaN(parsedAmount) || parsedAmount <= 0) {
       Alert.alert('Erro', 'Preencha a descrição e um valor válido.');
       return;
     }
 
-    // Lógica para determinar o amount final (receita é positiva, despesa é negativa)
-    const finalAmount = type === 'income' ? parsedAmount : -parsedAmount;
-
-    // Converte a data para o formato YYYY-MM-DD para salvar
     const formattedDate = date.toISOString().split('T')[0];
 
     let transactionToSave: Transaction = {
@@ -107,28 +99,23 @@ const AddTransactionScreen: React.FC = () => {
       frequency,
     };
 
-    // Adiciona campos específicos com base na frequência
     if (frequency === 'installment') {
       const parsedTotalInstallments = parseInt(totalInstallments);
-      const parsedTotalAmount = parseFloat(totalAmount.replace(',', '.'));
-      const parsedAmount = parseFloat(amount.replace(',', '.'));
+      const parsedTotalAmount = parseFloat(totalAmount.replace(',', '.')); // Parse do valor TOTAL da compra
 
       if (isNaN(parsedTotalInstallments) || parsedTotalInstallments <= 0) {
         Alert.alert('Erro', 'Preencha o número de parcelas válido.');
         return;
       }
-      if (isNaN(parsedAmount) || parsedAmount <= 0) {
-        Alert.alert('Erro', 'Preencha o valor da parcela válido.');
-        return;
-      }
-      if (isNaN(parsedTotalAmount) || parsedTotalAmount <= 0) {
+      if (isNaN(parsedTotalAmount) || parsedTotalAmount <= 0) { // Validação do valor TOTAL
         Alert.alert('Erro', 'Preencha o valor total da compra válido.');
         return;
       }
 
       transactionToSave = {
         ...transactionToSave,
-        totalAmount: parsedTotalAmount,
+        amount: parsedAmount, // O valor individual da parcela
+        totalAmount: parsedTotalAmount, // Valor TOTAL da compra (do campo específico)
         totalInstallments: parsedTotalInstallments,
         currentInstallment: transactionToSave.currentInstallment || 1,
         originalPurchaseDate: transactionToSave.originalPurchaseDate || formattedDate,
@@ -159,7 +146,8 @@ const AddTransactionScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.title}>Adicionar Novo Lançamento</Text>
+      <Text style={styles.title}>{transactionId ? 'Editar Lançamento' : 'Novo Lançamento'}</Text>
+
       {/* Tipo de Lançamento (Receita/Despesa) */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Tipo de Lançamento</Text>
@@ -178,8 +166,9 @@ const AddTransactionScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
+
       {/* Status (Pago / A Pagar) */}
-      {type === 'expense' && ( 
+      {type === 'expense' && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Status da Despesa</Text>
           <View style={styles.typeSelector}>
@@ -210,7 +199,7 @@ const AddTransactionScreen: React.FC = () => {
         />
       </View>
 
-      {/* Valor */}
+      {/* Valor (Individual da Parcela, ou Único/Recorrente) */}
       {frequency !== 'installment' && (
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Valor</Text>
@@ -339,7 +328,6 @@ const AddTransactionScreen: React.FC = () => {
           </View>
         </>
       )}
-
       {/* Salvar Botão */}
       <TouchableOpacity style={styles.saveButton} onPress={handleSaveTransaction}>
         <Text style={styles.saveButtonText}>Salvar Lançamento</Text>
@@ -398,8 +386,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedTypeButton: {
-    backgroundColor: '#007AFF', // Azul para selecionado
-    borderRadius: 7, // Arredondamento interno
+    backgroundColor: '#007AFF',
+    borderRadius: 7,
   },
   typeButtonText: {
     fontSize: 16,
@@ -415,14 +403,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ddd',
-    overflow: 'hidden', // Importante para o Picker no Android
+    overflow: 'hidden',
   },
   picker: {
     height: 50,
     width: '100%',
   },
   pickerItem: {
-    fontSize: 16, // Pode não ser totalmente controlável em todas as plataformas
+    fontSize: 16,
   },
   datePickerButton: {
     backgroundColor: '#fff',
@@ -462,7 +450,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#28A745', // Verde para salvar
+    backgroundColor: '#28A745',
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
