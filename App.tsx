@@ -1,23 +1,32 @@
+import 'react-native-get-random-values';
 import 'react-native-gesture-handler';
 
 import React from 'react';
 import { StyleSheet, SafeAreaView } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
+import { NavigationContainer, ParamListBase, RouteProp, Theme } from '@react-navigation/native';
+import { createNativeStackNavigator, NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import HomeScreen from './src/screens/HomeScreen';
 import AddTransactionScreen from './src/screens/AddTransactionScreen';
-import TransactionDetailScreen from './src/screens/TransactionDetailScreen'; // <--- Nova Importação
+import TransactionDetailScreen from './src/screens/TransactionDetailScreen';
 import Toast from 'react-native-toast-message';
 
 const Stack = createNativeStackNavigator();
 
 export type RootStackParamList = {
   Home: undefined;
-  AddTransaction: undefined;
-  // A tela de detalhes vai receber um ID da transação como parâmetro
-  TransactionDetail: { transactionId: string }; // <--- Novo Tipo de Rota
+  AddTransaction: { transactionId?: string } | undefined;
+  TransactionDetail: { transactionId: string };
 };
+
+// **Ajuste na definição do tipo AddTransactionScreenOptionsProps**
+// Usamos diretamente o tipo da função de options do React Navigation
+type AddTransactionScreenOptionsProps = {
+  route: RouteProp<RootStackParamList, 'AddTransaction'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'AddTransaction'>;
+  // Opcional: Se você usa o tema do React Navigation no seu app, inclua 'theme: Theme;'
+  // theme: Theme;
+};
+
 
 export default function App() {
   return (
@@ -32,9 +41,15 @@ export default function App() {
           <Stack.Screen
             name="AddTransaction"
             component={AddTransactionScreen}
-            options={{ title: 'Novo Lançamento' }}
+            options={({
+              route,
+            }: {
+              route: RouteProp<RootStackParamList, 'AddTransaction'>;
+            }) => ({
+              title: route.params?.transactionId ? 'Editar Lançamento' : 'Novo Lançamento',
+            })}
           />
-          <Stack.Screen // <--- Nova Rota
+          <Stack.Screen
             name="TransactionDetail"
             component={TransactionDetailScreen}
             options={{ title: 'Detalhes do Lançamento' }}

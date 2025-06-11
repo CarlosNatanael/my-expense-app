@@ -13,52 +13,43 @@ import { getTransactions, populateWithMockData, saveTransactions } from '../../d
 import { generateMonthlyTransactions } from '../../utils/transactionGenerators';
 import FloatingActionButton from '../../components/FloatingActionButton';
 
-// Os dados mockados agora serão usados apenas para popular a primeira vez
-const INITIAL_MOCKED_TRANSACTIONS: Transaction[] = [
-  // ... (Seus dados mockados existentes com datas no formato DD/MM/YYYY)
-  { id: '1', description: 'Futebol (Carlos)', amount: 50.00, date: '06/06/2025', category: 'Lazer', type: 'expense', status: 'paid', frequency: 'once' },
-  { id: '2', description: 'Pagamento Salário', amount: 5100.00, date: '06/06/2025', category: 'Salário', type: 'income', status: 'paid', frequency: 'once' },
-  { id: '3', description: 'Aluguel', amount: 490.00, date: '09/01/2025', category: 'Moradia', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '01/01/2025' },
-  { id: '4', description: 'Mãe', amount: 200.00, date: '09/06/2025', category: 'Outros', type: 'expense', status: 'paid', frequency: 'once' },
-  { id: '5', description: 'Internet', amount: 109.90, date: '12/01/2025', category: 'Contas', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '01/01/2025' },
-  { id: '6', description: 'Plano Chip (Carlos)', amount: 29.99, date: '12/01/2025', category: 'Contas', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '01/01/2025' },
-  { id: '7', description: 'Plano Chip (Marcela)', amount: 40.00, date: '13/01/2025', category: 'Contas', type: 'expense', status: 'pending', frequency: 'monthly', startDate: '01/01/2025' },
-  { id: '8', description: 'Cartão Picpay (Carlos)', amount: 400.00, date: '15/06/2025', category: 'Outros', type: 'expense', status: 'paid', frequency: 'once' },
-  { id: '9', description: 'Condomínio', amount: 160.00, date: '15/01/2025', category: 'Moradia', type: 'expense', status: 'paid', frequency: 'monthly', startDate: '01/01/2025' },
-  { id: '10', description: 'Magalu Carne', amount: 251.37, date: '18/03/2025', category: 'Compras', type: 'expense', status: 'paid', frequency: 'installment', totalAmount: 3770.55, totalInstallments: 15, currentInstallment: 1, originalPurchaseDate: '18/03/2025', installmentGroupId: 'magalu-carne-1' },
-  { id: '11', description: 'Banco do Brasil (Marcela)', amount: 730.00, date: '26/06/2025', category: 'Outros', type: 'expense', status: 'paid', frequency: 'once' },
-];
-
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-interface HomeScreenProps {}
+interface HomeScreenProps{}
 
 const HomeScreen: React.FC<HomeScreenProps> = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1)); // Junho de 2025 (mês 5 é junho)
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1));
   const [currentFilter, setCurrentFilter] = useState<FilterType>('all');
   const [displayedTransactions, setDisplayedTransactions] = useState<Transaction[]>([]);
   const [allStoredTransactions, setAllStoredTransactions] = useState<Transaction[]>([]);
 
   const calculateFinancialSummary = useCallback((trans: Transaction[]) => {
     let income = 0;
-    let expenses = 0;
+    let totalPaidExpenses = 0;
+    let totalPendingExpenses = 0;
 
     trans.forEach(t => {
-      const amount = t.type === 'expense' ? Math.abs(t.amount) : t.amount;
+      const amountValue = Math.abs(t.amount);
       if (t.type === 'income') {
-        income += amount;
+        income += amountValue;
       } else {
-        expenses += amount;
+        if (t.status === 'paid') {
+          totalPaidExpenses += amountValue;
+        } else {
+          totalPendingExpenses += amountValue;
+        }
       }
     });
 
-    const balance = income - expenses;
-    return { income, expenses, balance };
+    const totalExpenses = totalPaidExpenses + totalPendingExpenses;
+    const balance = income - totalExpenses;
+
+    return { income, totalPaidExpenses, totalPendingExpenses, balance };
   }, []);
 
-  const { income: totalIncome, expenses: totalExpenses, balance } = calculateFinancialSummary(displayedTransactions);
+  const { income: totalIncome, totalPaidExpenses, totalPendingExpenses, balance } = calculateFinancialSummary(displayedTransactions);
 
   const loadAndGenerateTransactions = useCallback(async () => {
     const loadedTransactions = await getTransactions();
@@ -68,7 +59,6 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
         "Dados de Exemplo",
         "Nenhum dado encontrado. Adicionando dados de exemplo para você começar!",
         [{ text: "OK", onPress: async () => {
-          await populateWithMockData(INITIAL_MOCKED_TRANSACTIONS);
           const reloadedTransactions = await getTransactions();
           setAllStoredTransactions(reloadedTransactions);
           const generated = generateMonthlyTransactions(reloadedTransactions, currentDate);
@@ -97,6 +87,7 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
     return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };
 
+  // Reintroduzindo as funções handlePreviousMonth e handleNextMonth
   const handlePreviousMonth = () => {
     setCurrentDate(prevDate => {
       const newDate = new Date(prevDate);
@@ -113,17 +104,20 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
     });
   };
 
-  const handleOpenCalendar = () => {
-    alert('Abrir seletor de calendário!');
+  // Função para atualizar a data quando o seletor de calendário é usado
+  const handleDateSelected = (newDate: Date) => {
+    // Certifica-se de que a data selecionada seja o primeiro dia do mês, para evitar problemas de fuso horário
+    const firstDayOfMonth = new Date(newDate.getFullYear(), newDate.getMonth(), 1);
+    setCurrentDate(firstDayOfMonth); // Atualiza o estado da data, o que vai recarregar a lista
   };
+
 
   const handleSelectFilter = (filter: FilterType) => {
     setCurrentFilter(filter);
   };
 
   const handlePressTransactionItem = (transaction: Transaction) => {
-    // Navega para a tela de detalhes, passando o ID da transação
-    navigation.navigate('TransactionDetail', { transactionId: transaction.id }); // <--- Novo: Passa o ID
+    navigation.navigate('TransactionDetail', { transactionId: transaction.id });
   };
 
   const handleAddTransaction = () => {
@@ -135,14 +129,15 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
       <Header
         currentMonth={formatMonth(currentDate)}
         balance={balance}
-        onPressPreviousMonth={handlePreviousMonth}
-        onPressNextMonth={handleNextMonth}
-        onPressCalendar={handleOpenCalendar}
+        onPressPreviousMonth={handlePreviousMonth} // <-- Agora a função existe
+        onPressNextMonth={handleNextMonth}     // <-- Agora a função existe
+        onDateChange={handleDateSelected}
+        selectedDate={currentDate}
       />
 
       <SummaryCards
         totalIncome={totalIncome}
-        totalExpenses={totalExpenses}
+        totalExpenses={totalPaidExpenses} // Corrija aqui
       />
 
       <FilterTabs

@@ -4,30 +4,40 @@ import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { Transaction } from '../../types';
-import { getTransactions, deleteTransaction } from '../../data/transactions'; // Importar funções de dados
-import Toast from 'react-native-toast-message'; // Para feedback
+import { getTransactions, deleteTransaction, updateTransaction } from '../../data/transactions'; // Importe updateTransaction
+import Toast from 'react-native-toast-message';
 
-// Tipando a rota e a navegação para esta tela
 type TransactionDetailScreenRouteProp = RouteProp<RootStackParamList, 'TransactionDetail'>;
 type TransactionDetailScreenNavigationProp = StackNavigationProp<RootStackParamList, 'TransactionDetail'>;
 
 const TransactionDetailScreen: React.FC = () => {
   const route = useRoute<TransactionDetailScreenRouteProp>();
   const navigation = useNavigation<TransactionDetailScreenNavigationProp>();
-  const { transactionId } = route.params; // Obtém o ID da transação dos parâmetros da rota
+  const { transactionId } = route.params;
 
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Função para carregar os detalhes da transação
   const loadTransactionDetails = useCallback(async () => {
     setLoading(true);
     try {
       const allTransactions = await getTransactions();
-      // Encontra a transação pelo ID (considerando que IDs de ocorrência são diferentes dos mestres)
-      // Para edição, precisamos do ID original do registro mestre.
-      // Por enquanto, buscamos pelo ID gerado para exibição.
-      const foundTransaction = allTransactions.find(t => t.id === transactionId);
+      let foundTransaction: Transaction | undefined;
+
+      // Busca o registro mestre original
+      // Verifica se o transactionId da rota é um ID de ocorrência gerado (com sufixo -ANO-MES)
+      // Isso funciona porque UUIDs tem 5 hífens, nossos sufixos adicionam mais.
+      const isGeneratedInstanceId = transactionId.split('-').length > 5;
+
+      if (isGeneratedInstanceId) {
+        // Se for um ID de ocorrência gerado, extrai o ID original (o UUID)
+        const originalId = transactionId.split('-').slice(0, 5).join('-');
+        foundTransaction = allTransactions.find(t => t.id === originalId);
+      } else {
+        // Se não for um ID de ocorrência gerado, procura pelo ID exato (para transações únicas ou mestres)
+        foundTransaction = allTransactions.find(t => t.id === transactionId);
+      }
+
       setTransaction(foundTransaction || null);
     } catch (error) {
       console.error('Erro ao carregar detalhes da transação:', error);
@@ -37,12 +47,13 @@ const TransactionDetailScreen: React.FC = () => {
     }
   }, [transactionId]);
 
-  // Carrega os detalhes quando a tela é focada
   useEffect(() => {
-    loadTransactionDetails();
-  }, [loadTransactionDetails]);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadTransactionDetails();
+    });
+    return unsubscribe;
+  }, [navigation, loadTransactionDetails]);
 
-  // Função para excluir a transação
   const handleDeleteTransaction = async () => {
     if (!transaction) return;
 
@@ -55,22 +66,45 @@ const TransactionDetailScreen: React.FC = () => {
           text: 'Excluir',
           onPress: async () => {
             try {
-              // TODO: A lógica de exclusão precisa considerar se é uma transação gerada (recorrente/parcelada)
-              // ou a transação mestre original. Por enquanto, exclui o registro mestre.
               await deleteTransaction(transaction.id);
-              Toast.show({
-                type: 'success',
-                text1: 'Sucesso!',
-                text2: 'Lançamento excluído com êxito.',
-              });
-              navigation.goBack(); // Volta para a tela anterior
+              Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento excluído com êxito.', });
+              navigation.goBack();
             } catch (error) {
               console.error('Erro ao excluir transação:', error);
-              Toast.show({
-                type: 'error',
-                text1: 'Erro!',
-                text2: 'Não foi possível excluir o lançamento.',
-              });
+              Toast.show({ type: 'error', text1: 'Erro!', text2: 'Não foi possível excluir o lançamento.', });
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEditTransaction = () => {
+    if (transaction) {
+      navigation.navigate('AddTransaction', { transactionId: transaction.id });
+    }
+  };
+
+  // Novo: Função para marcar como pago
+  const handleMarkAsPaid = async () => {
+    if (!transaction) return;
+
+    Alert.alert(
+      'Marcar como Pago',
+      `Marcar "${transaction.description}" como pago?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Marcar',
+          onPress: async () => {
+            try {
+              const updatedTrans = { ...transaction, status: 'paid' as Transaction['status'] };
+              await updateTransaction(updatedTrans); // Atualiza no AsyncStorage
+              Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento marcado como pago.', });
+              navigation.goBack(); // Volta para atualizar a Home (via useFocusEffect)
+            } catch (error) {
+              console.error('Erro ao marcar como pago:', error);
+              Toast.show({ type: 'error', text1: 'Erro!', text2: 'Não foi possível marcar como pago.', });
             }
           },
         },
@@ -95,8 +129,7 @@ const TransactionDetailScreen: React.FC = () => {
     );
   }
 
-  // Formata o valor
-  const formattedAmount = `${transaction.type === 'expense' ? '-' : '+'} R$ ${transaction.amount.toFixed(2).replace('.', ',')}`;
+  const formattedAmount = `R$ ${transaction.amount.toFixed(2).replace('.', ',')}`;
   const amountColor = transaction.type === 'expense' ? '#E74C3C' : '#2ECC71';
 
   return (
@@ -108,10 +141,10 @@ const TransactionDetailScreen: React.FC = () => {
         <Text style={styles.value}>{transaction.description}</Text>
       </View>
 
-      <View style={styles.detailCard}>
-        <Text style={styles.label}>Valor:</Text>
-        <Text style={[styles.value, { color: amountColor }]}>{formattedAmount}</Text>
-      </View>
+    <View style={styles.detailCard}>
+      <Text style={styles.label}>Valor:</Text>
+      <Text style={[styles.value, { color: amountColor }]}>{formattedAmount}</Text>
+    </View>
 
       <View style={styles.detailCard}>
         <Text style={styles.label}>Categoria:</Text>
@@ -176,7 +209,12 @@ const TransactionDetailScreen: React.FC = () => {
 
       {/* Botões de Ação */}
       <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={() => Alert.alert('Em Desenvolvimento', 'Funcionalidade de edição em breve!')}>
+        {transaction.type === 'expense' && transaction.status === 'pending' && (
+          <TouchableOpacity style={[styles.actionButton, styles.markAsPaidButton]} onPress={handleMarkAsPaid}>
+            <Text style={styles.actionButtonText}>Marcar como Pago</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={handleEditTransaction}>
           <Text style={styles.actionButtonText}>Editar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={handleDeleteTransaction}>
@@ -188,89 +226,29 @@ const TransactionDetailScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f8f8',
-  },
-  contentContainer: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 25,
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#f8f8f8', },
+  contentContainer: { padding: 20, paddingBottom: 40, },
+  header: { fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 25, textAlign: 'center', },
   detailCard: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+    backgroundColor: '#fff', borderRadius: 10, padding: 15, marginBottom: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2,
   },
-  label: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
-  },
-  value: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '600',
-    flexShrink: 1, // Permite que o texto quebre linha se for muito longo
-    textAlign: 'right',
-    marginLeft: 10, // Espaço entre label e value
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#888',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#E74C3C',
-  },
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 30,
-  },
+  label: { fontSize: 16, color: '#666', fontWeight: '500', },
+  value: { fontSize: 16, color: '#333', fontWeight: '600', flexShrink: 1, textAlign: 'right', marginLeft: 10, },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f8f8', },
+  loadingText: { marginTop: 10, fontSize: 16, color: '#888', },
+  errorText: { fontSize: 16, color: '#E74C3C', },
+  actionButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 30, flexWrap: 'wrap' }, // Adicionado flexWrap
   actionButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 10,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    paddingVertical: 12, paddingHorizontal: 15, borderRadius: 10, elevation: 3,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3,
+    margin: 5, // Espaçamento entre os botões
   },
-  editButton: {
-    backgroundColor: '#007AFF',
-  },
-  deleteButton: {
-    backgroundColor: '#E74C3C',
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  editButton: { backgroundColor: '#007AFF', },
+  deleteButton: { backgroundColor: '#E74C3C', },
+  markAsPaidButton: { backgroundColor: '#2ECC71', }, // Novo estilo para o botão "Pagar"
+  actionButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold', },
 });
 
 export default TransactionDetailScreen;

@@ -19,6 +19,7 @@ const categoryIcons: { [key: string]: keyof typeof Ionicons.glyphMap } = {
   'Saúde': 'medkit-outline',
   'Educação': 'school-outline',
   'Compras': 'cart-outline',
+  'Cartão': 'card-outline',
   'Outros': 'help-circle-outline',
   // Adicione mais ícones conforme suas necessidades
 };
@@ -63,14 +64,11 @@ const TransactionListItem: React.FC<TransactionListItemProps> = ({ transaction, 
           <Ionicons name={iconName} size={16} color="#666" style={styles.categoryIcon} />
         </View>
       </View>
-
-      {/* Valor e Ícone de Seta (se aplicável) */}
       <View style={styles.amountContainer}>
         <Text style={[styles.amountText, { color: amountColor }]}>
           {formattedAmount}
-          {installmentText} {/* Adiciona o texto da parcela */}
+          {installmentText}
         </Text>
-        {/* Ícone de "seta" para indicar que pode ser clicável para detalhes */}
         {onPressItem && <Ionicons name="chevron-forward-outline" size={18} color="#bbb" />}
       </View>
     </TouchableOpacity>

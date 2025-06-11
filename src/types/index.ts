@@ -24,6 +24,7 @@ export interface Transaction {
   currentInstallment?: number; // Usado para 'installment' (parcela atual N/total)
   originalPurchaseDate?: string; // Usado para 'installment' (data da compra original)
   installmentGroupId?: string; // Usado para 'installment' (para agrupar parcelas da mesma compra)
+  installmentFrequency?: string;
 }
 
 // Opcional: Se você quiser um tipo mais estrito para as transações no `transactionGenerators`,

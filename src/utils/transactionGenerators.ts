@@ -1,18 +1,19 @@
 // src/utils/transactionGenerators.ts
 import { Transaction, RecurringTransaction, InstallmentTransaction } from '../types';
 
-// Funções auxiliares para parsear e formatar datas
+// **Ajuste na função parseDateString**
 const parseDateString = (dateString: string): Date => {
-  // Assume formato DD/MM/YYYY. Divide, inverte e junta para YYYY-MM-DD
-  const [day, month, year] = dateString.split('/');
-  return new Date(`${year}-${month}-${day}`);
+  // Tenta parsear no formato YYYY-MM-DD (padrão de new Date() com strings ISO)
+  // Se for DD/MM/YYYY, o split('/') resultará em partes, caso contrário, não.
+  if (dateString.includes('/')) {
+    // Formato DD/MM/YYYY
+    const [day, month, year] = dateString.split('/');
+    return new Date(`${year}-${month}-${day}`);
+  } else {
+    // Assume formato YYYY-MM-DD (ou outro formato ISO compatível com new Date())
+    return new Date(dateString);
+  }
 };
-
-// Se você já tem as datas no formato YYYY-MM-DD no mock e no AddTransactionScreen
-// então new Date(dateString) já deve funcionar.
-// No entanto, se o log mostra DD/MM/YYYY, a função acima é necessária.
-// Estou ajustando para usar parseDateString para ser robusto com o formato DD/MM/YYYY.
-
 
 /**
  * Gera as ocorrências de transações para um mês específico.
@@ -31,43 +32,48 @@ export const generateMonthlyTransactions = (
   const monthlyTransactions: Transaction[] = [];
 
   allTransactions.forEach(trans => {
+    // console.log('Processing transaction:', trans.id, trans.description, 'Date:', trans.date); // Log para depuração
 
     // Transações Únicas
     if (trans.frequency === 'once') {
-      const transactionDate = parseDateString(trans.date); // Use parseDateString aqui
+      const transactionDate = parseDateString(trans.date);
+      // console.log('  Once - Parsed Date:', transactionDate);
       if (transactionDate.getMonth() === targetMonth && transactionDate.getFullYear() === targetYear) {
         monthlyTransactions.push(trans);
+        // console.log('  Once - Added:', trans.description);
       }
     }
 
     // Transações Recorrentes (Mensais)
     else if (trans.frequency === 'monthly') {
       const recurringTrans = trans as RecurringTransaction;
-      const startDate = parseDateString(recurringTrans.startDate); // Use parseDateString aqui
+      const startDate = parseDateString(recurringTrans.startDate);
+      // console.log('  Monthly - Parsed Start Date:', startDate);
 
       const hasStarted =
         startDate.getFullYear() < targetYear ||
         (startDate.getFullYear() === targetYear && startDate.getMonth() <= targetMonth);
 
       const hasNotEnded = !recurringTrans.endDate ||
-        (parseDateString(recurringTrans.endDate).getFullYear() > targetYear || // Use parseDateString aqui
+        (parseDateString(recurringTrans.endDate).getFullYear() > targetYear ||
          (parseDateString(recurringTrans.endDate).getFullYear() === targetYear && parseDateString(recurringTrans.endDate).getMonth() >= targetMonth));
 
       if (hasStarted && hasNotEnded) {
         const monthlyInstance: Transaction = {
           ...recurringTrans,
-          // Ajusta o dia para evitar problemas em meses com menos dias (ex: 31 de jan para fev)
           date: new Date(targetYear, targetMonth, Math.min(startDate.getDate(), new Date(targetYear, targetMonth + 1, 0).getDate())).toISOString().split('T')[0],
           id: `${recurringTrans.id}-${targetYear}-${targetMonth}`,
         };
         monthlyTransactions.push(monthlyInstance);
+        // console.log('  Monthly - Added:', monthlyInstance.description);
       }
     }
 
     // Transações Parceladas
     else if (trans.frequency === 'installment') {
       const installmentTrans = trans as InstallmentTransaction;
-      const originalPurchaseDate = parseDateString(installmentTrans.originalPurchaseDate); // Use parseDateString aqui
+      const originalPurchaseDate = parseDateString(installmentTrans.originalPurchaseDate);
+      // console.log('  Installment - Parsed Original Purchase Date:', originalPurchaseDate);
 
       const diffMonths =
         (targetYear - originalPurchaseDate.getFullYear()) * 12 +
@@ -82,16 +88,17 @@ export const generateMonthlyTransactions = (
         const installmentInstance: Transaction = {
           ...installmentTrans,
           currentInstallment: currentCalculatedInstallment,
-          // Ajusta o dia para evitar problemas em meses com menos dias
           date: new Date(targetYear, targetMonth, Math.min(originalPurchaseDate.getDate(), new Date(targetYear, targetMonth + 1, 0).getDate())).toISOString().split('T')[0],
           id: `${installmentTrans.id}-${targetYear}-${targetMonth}`,
         };
         monthlyTransactions.push(installmentInstance);
+        // console.log('  Installment - Added:', installmentInstance.description, installmentInstance.currentInstallment, '/', installmentInstance.totalInstallments);
       }
     }
   });
 
   monthlyTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  console.log('generateMonthlyTransactions - Final monthlyTransactions:', monthlyTransactions);
 
   return monthlyTransactions;
 };

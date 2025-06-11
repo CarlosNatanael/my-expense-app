@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Transaction } from '../types'; // Importe a interface Transaction
+import { Transaction } from '../types';
+
 
 const TRANSACTIONS_STORAGE_KEY = '@myExpenseApp:transactions';
 
@@ -7,18 +8,20 @@ const TRANSACTIONS_STORAGE_KEY = '@myExpenseApp:transactions';
 export const getTransactions = async (): Promise<Transaction[]> => {
   try {
     const jsonValue = await AsyncStorage.getItem(TRANSACTIONS_STORAGE_KEY);
-    return jsonValue != null ? JSON.parse(jsonValue) : [];
+    const transactions = jsonValue != null ? JSON.parse(jsonValue) : [];
+    console.log('getTransactions: Dados carregados do AsyncStorage:', transactions); // Adicione este log
+    return transactions;
   } catch (e) {
     console.error('Erro ao carregar transações do AsyncStorage:', e);
     return [];
   }
 };
 
-// Função para salvar uma lista de transações
 export const saveTransactions = async (transactions: Transaction[]): Promise<void> => {
   try {
     const jsonValue = JSON.stringify(transactions);
     await AsyncStorage.setItem(TRANSACTIONS_STORAGE_KEY, jsonValue);
+    console.log('saveTransactions: Dados salvos no AsyncStorage:', transactions); // Adicione este log
   } catch (e) {
     console.error('Erro ao salvar transações no AsyncStorage:', e);
   }
@@ -29,6 +32,7 @@ export const addTransaction = async (newTransaction: Transaction): Promise<Trans
   const currentTransactions = await getTransactions();
   const updatedTransactions = [...currentTransactions, newTransaction];
   await saveTransactions(updatedTransactions);
+  console.log('addTransaction: Transação adicionada. Todas as transações:', updatedTransactions); // Adicione este log
   return updatedTransactions;
 };
 
@@ -39,6 +43,7 @@ export const updateTransaction = async (updatedTransaction: Transaction): Promis
     t.id === updatedTransaction.id ? updatedTransaction : t
   );
   await saveTransactions(updatedTransactions);
+  console.log('updateTransaction: Transação atualizada. Todas as transações:', updatedTransactions); // Adicione este log
   return updatedTransactions;
 };
 
