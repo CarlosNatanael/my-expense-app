@@ -18,13 +18,9 @@ export type RootStackParamList = {
   TransactionDetail: { transactionId: string };
 };
 
-// **Ajuste na definição do tipo AddTransactionScreenOptionsProps**
-// Usamos diretamente o tipo da função de options do React Navigation
 type AddTransactionScreenOptionsProps = {
   route: RouteProp<RootStackParamList, 'AddTransaction'>;
   navigation: NativeStackNavigationProp<RootStackParamList, 'AddTransaction'>;
-  // Opcional: Se você usa o tema do React Navigation no seu app, inclua 'theme: Theme;'
-  // theme: Theme;
 };
 
 
@@ -42,7 +38,7 @@ export default function App() {
             name="AddTransaction"
             component={AddTransactionScreen}
             options={({
-              route,
+            route,
             }: {
               route: RouteProp<RootStackParamList, 'AddTransaction'>;
             }) => ({

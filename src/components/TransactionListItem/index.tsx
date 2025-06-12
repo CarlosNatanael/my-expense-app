@@ -24,17 +24,20 @@ const categoryIcons: { [key: string]: keyof typeof Ionicons.glyphMap } = {
   // Adicione mais ícones conforme suas necessidades
 };
 
-// Mapeamento para o ícone de status (pago/pendente)
-const statusIcons: { [key: string]: keyof typeof Ionicons.glyphMap } = {
-  'paid': 'checkmark-circle-outline', // Círculo com check para pago
-  'pending': 'time-outline',         // Relógio para pendente
+// Mapeamento para o ícone e COR de status (pago/pendente)
+// Ajustado para refletir a imagem: relógio vermelho para 'pending' e checkmark verde para 'paid'
+const statusDisplay: { [key: string]: { icon: keyof typeof Ionicons.glyphMap, color: string } } = {
+  'paid': { icon: 'checkmark-circle', color: '#2ECC71' },
+  'pending': { icon: 'time-outline', color: '#E74C3C' },
 };
 
 
 const TransactionListItem: React.FC<TransactionListItemProps> = ({ transaction, onPressItem }) => {
   const isExpense = transaction.type === 'expense';
   const iconName = categoryIcons[transaction.category] || categoryIcons['Outros'];
-  const statusIconName = statusIcons[transaction.status] || statusIcons['paid']; // Default para pago
+
+  // Obtém o ícone e a cor do status
+  const currentStatusDisplay = statusDisplay[transaction.status] || statusDisplay['paid'];
 
   // Formata o valor com sinal e cor
   const formattedAmount = `${isExpense ? '- ' : '+ '}R$ ${transaction.amount.toFixed(2).replace('.', ',')}`;
@@ -42,20 +45,20 @@ const TransactionListItem: React.FC<TransactionListItemProps> = ({ transaction, 
 
   // Lógica para exibir parcelas (se for o caso)
   let installmentText = '';
-  if (transaction.frequency === 'installment') {
+  if (transaction.frequency === 'installment' && transaction.currentInstallment && transaction.totalInstallments) {
     installmentText = ` (${transaction.currentInstallment}/${transaction.totalInstallments})`;
   }
 
+
   return (
     <TouchableOpacity style={styles.container} onPress={() => onPressItem && onPressItem(transaction)}>
-      {/* Icone de Status */}
-      <Ionicons name={statusIconName} size={22} color="#888" style={styles.statusIcon} />
-
+      {/* Icone de Status - Usa a cor e o ícone do statusDisplay */}
+      <Ionicons name={currentStatusDisplay.icon} size={22} color={currentStatusDisplay.color} style={styles.statusIcon} />
       {/* Conteúdo Principal */}
       <View style={styles.detailsContainer}>
         <View style={styles.descriptionRow}>
           <Text style={styles.descriptionText}>{transaction.description}</Text>
-          {transaction.frequency === 'monthly' && ( // Ícone de recorrência
+          {transaction.frequency === 'monthly' && (
             <Ionicons name="repeat-outline" size={16} color="#666" style={styles.recurringIcon} />
           )}
         </View>
@@ -64,6 +67,7 @@ const TransactionListItem: React.FC<TransactionListItemProps> = ({ transaction, 
           <Ionicons name={iconName} size={16} color="#666" style={styles.categoryIcon} />
         </View>
       </View>
+      {/* Valor e Ícone de Seta (se aplicável) */}
       <View style={styles.amountContainer}>
         <Text style={[styles.amountText, { color: amountColor }]}>
           {formattedAmount}
