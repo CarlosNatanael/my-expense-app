@@ -17,12 +17,10 @@ export type RootStackParamList = {
   AddTransaction: { transactionId?: string } | undefined;
   TransactionDetail: { transactionId: string };
 };
-
 type AddTransactionScreenOptionsProps = {
   route: RouteProp<RootStackParamList, 'AddTransaction'>;
   navigation: NativeStackNavigationProp<RootStackParamList, 'AddTransaction'>;
 };
-
 
 export default function App() {
   return (
