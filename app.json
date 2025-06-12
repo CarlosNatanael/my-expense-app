@@ -4,7 +4,7 @@
     "slug": "minhas-despesas-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/my-app-icon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -23,10 +23,16 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.carlosnatanael.minhasdespesas"
+      "package": "com.carlosnatanael.minhasdespesas",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "16e2c92e-6093-402d-84ca-655899a2f161"
+      }
     }
   }
 }
