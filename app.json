@@ -1,26 +1,29 @@
 {
   "expo": {
-    "name": "my-expense-app",
-    "slug": "my-expense-app",
+    "name": "Minhas Despesas",
+    "slug": "minhas-despesas-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/my-app-icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.carlosnatanael.minhasdespesas"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.carlosnatanael.minhasdespesas"
     },
     "web": {
       "favicon": "./assets/favicon.png"

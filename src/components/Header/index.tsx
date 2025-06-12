@@ -2,7 +2,8 @@ import React, { useState } from 'react'; // Importe useState
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native'; // Importe Platform
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import DateTimePicker from '@react-native-community/datetimepicker'; // <--- Nova Importação
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { FilterType } from '../FilterTabs';
 
 interface HeaderProps {
   currentMonth: string;
@@ -11,6 +12,7 @@ interface HeaderProps {
   onPressNextMonth: () => void;
   onDateChange: (newDate: Date) => void; // <--- Alterado: agora passa a nova data
   selectedDate: Date; // <--- Novo: para inicializar o calendário
+  currentFilter: FilterType;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -42,11 +44,10 @@ const Header: React.FC<HeaderProps> = ({
         <TouchableOpacity onPress={onPressNextMonth}>
           <Ionicons name="chevron-forward" size={24} color="#333" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.calendarIcon}> {/* <-- Altera o onPress */}
+        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.calendarIcon}>
           <Ionicons name="calendar-outline" size={24} color="#333" />
         </TouchableOpacity>
       </View>
-
       {/* DatePicker */}
       {showDatePicker && (
         <DateTimePicker
@@ -57,7 +58,6 @@ const Header: React.FC<HeaderProps> = ({
           onChange={handleDateChange}
         />
       )}
-
       {/* Balance Section */}
       <View style={styles.balanceContainer}>
         <Text style={styles.balanceLabel}>Balanço do mês</Text>
@@ -71,7 +71,6 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: 20,
-    // Remova o paddingTop fixo que estava aqui antes (ex: paddingTop: 10,)
     paddingBottom: 15,
     backgroundColor: '#fff',
     borderBottomLeftRadius: 20,

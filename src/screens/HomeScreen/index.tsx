@@ -133,6 +133,7 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
         onPressNextMonth={handleNextMonth}     // <-- Agora a função existe
         onDateChange={handleDateSelected}
         selectedDate={currentDate}
+        currentFilter={currentFilter}
       />
 
       <SummaryCards
