@@ -124,6 +124,10 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
     navigation.navigate('AddTransaction');
   };
 
+  const handleGoToWishlist = () => {
+    navigation.navigate('Wishlist');
+  };
+
   return (
     <View style={styles.container}>
       <Header
@@ -160,6 +164,11 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
       />
 
       <FloatingActionButton onPress={handleAddTransaction} />
+
+      {/* Botão Temporário para a Lista de Desejos */}
+      <View style={styles.wishlistButtonContainer}>
+        <Button title="Ir para Lista de Desejos" onPress={handleGoToWishlist} />
+      </View>
     </View>
   );
 };
@@ -181,6 +190,12 @@ const styles = StyleSheet.create({
     marginTop: 50,
     fontSize: 16,
     color: '#888',
+  },
+  wishlistButtonContainer: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    left: 20,
   },
 });
 
