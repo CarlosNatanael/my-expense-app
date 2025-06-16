@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Transaction, TransactionType } from '../../types';
+import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
 
 interface TransactionListItemProps {
   transaction: Transaction;
@@ -12,21 +13,23 @@ const categoryIcons: { [key: string]: keyof typeof Ionicons.glyphMap } = {
   'Lazer': 'game-controller-outline',
   'Salário': 'wallet-outline',
   'Moradia': 'home-outline',
+  'Pets': 'paw-outline',
   'Contas': 'receipt-outline',
   'Transporte': 'car-outline',
   'Alimentação': 'fast-food-outline',
+  'Família': 'people-outline',
   'Saúde': 'medkit-outline',
   'Educação': 'school-outline',
   'Compras': 'cart-outline',
   'Cartão': 'card-outline',
+  'Esporte': 'football-outline',
   'Outros': 'help-circle-outline',
 };
 
-// Mapeamento para o ícone e COR de status (pago/pendente)
 const statusDisplay: { [key: string]: { icon: keyof typeof Ionicons.glyphMap, color: string } } = {
-  'paid': { icon: 'checkmark-circle', color: '#2ECC71' }, // Verde para pago
-  'pending': { icon: 'time-outline', color: '#E74C3C' },     // Relógio vermelho para pendente
-  'overdue': { icon: 'warning', color: '#FFD700' },       // <--- NOVO: Alerta amarelo para atrasado
+  'paid': { icon: 'checkmark-circle', color: '#2ECC71' },
+  'pending': { icon: 'time-outline', color: '#E74C3C' },
+  'overdue': { icon: 'warning', color: '#FFD700' },
 };
 
 
@@ -34,7 +37,6 @@ const TransactionListItem: React.FC<TransactionListItemProps> = ({ transaction, 
   const isExpense = transaction.type === 'expense';
   const iconName = categoryIcons[transaction.category] || categoryIcons['Outros'];
   
-  // Lógica para verificar se a despesa está pendente e atrasada
   const isOverdue = React.useMemo(() => {
     if (transaction.type === 'expense' && transaction.status === 'pending') {
       const transactionDate = parseDateString(transaction.date);
@@ -46,26 +48,24 @@ const TransactionListItem: React.FC<TransactionListItemProps> = ({ transaction, 
     return false;
   }, [transaction.type, transaction.status, transaction.date]);
 
-  // Define o ícone e a cor do status com base na condição de atraso
   let currentStatusDisplay;
   if (isOverdue) {
-    currentStatusDisplay = statusDisplay['overdue']; // Se atrasada, usa o ícone de alerta
+    currentStatusDisplay = statusDisplay['overdue'];
   } else {
-    currentStatusDisplay = statusDisplay[transaction.status] || statusDisplay['paid']; // Caso contrário, usa o status normal
+    currentStatusDisplay = statusDisplay[transaction.status] || statusDisplay['paid'];
   }
 
-
-  const formattedAmount = `${transaction.type === 'expense' ? '- ' : '+ '}R$ ${transaction.amount.toFixed(2).replace('.', ',')}`;
+  const formattedAmount = `${transaction.type === 'expense' ? '-' : '+'} R$ ${formatAmountWithThousandsSeparator(transaction.amount)}`;
   const amountColor = isExpense ? '#E74C3C' : '#2ECC71';
 
-  let installmentText = '';
-  if (transaction.frequency === 'installment' && transaction.currentInstallment && transaction.totalInstallments) {
-    installmentText = ` (${transaction.currentInstallment}/${transaction.totalInstallments})`;
-  }
+  // Verifica se é uma transação parcelada para exibir o número da parcela
+  const isInstallment = transaction.frequency === 'installment' && 
+                        transaction.currentInstallment !== undefined && 
+                        transaction.totalInstallments !== undefined;
 
   return (
     <TouchableOpacity style={styles.container} onPress={() => onPressItem && onPressItem(transaction)}>
-      {/* Icone de Status - Usa a cor e o ícone do statusDisplay */}
+      {/* Icone de Status */}
       <Ionicons name={currentStatusDisplay.icon} size={22} color={currentStatusDisplay.color} style={styles.statusIcon} />
 
       {/* Conteúdo Principal */}
@@ -79,18 +79,19 @@ const TransactionListItem: React.FC<TransactionListItemProps> = ({ transaction, 
         <View style={styles.infoRow}>
           <Text style={styles.dateText}>{transaction.date}</Text>
           <Ionicons name={iconName} size={16} color="#666" style={styles.categoryIcon} />
-          {/* O ícone de alerta NÃO é mais renderizado separadamente aqui, pois foi integrado ao statusIcon */}
         </View>
       </View>
 
-      {/* Valor e Ícone de Seta (se aplicável) */}
+      {/* Valor e Número da Parcela (dentro do amountContainer) */}
       <View style={styles.amountContainer}>
         <Text style={[styles.amountText, { color: amountColor }]}>
           {formattedAmount}
-          {installmentText}
         </Text>
-        {/* Ícone de "seta" para indicar que pode ser clicável para detalhes */}
-        {onPressItem && <Ionicons name="chevron-forward-outline" size={18} color="#bbb" />}
+        {isInstallment && ( // Renderiza o número da parcela apenas se for parcelada
+          <Text style={styles.installmentText}>
+            {transaction.currentInstallment}/{transaction.totalInstallments}
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -141,18 +142,30 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   categoryIcon: {},
-  // O estilo overdueIcon pode ser removido, pois o ícone não é mais um componente separado
-  // overdueIcon: {
-  //   marginLeft: 5,
-  // },
   amountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    // AQUI ESTÁ A MUDANÇA PRINCIPAL: flexDirection para 'column' e alinhamento
+    flexDirection: 'column',
+    alignItems: 'flex-end', // Alinha o texto à direita
+    justifyContent: 'center', // Centraliza verticalmente se houver espaço
   },
   amountText: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginRight: 5,
+    marginRight: 5, // Mantém espaço se tiver o chevron
+    textAlign: 'right', // Garante alinhamento à direita
+  },
+  installmentText: { // <-- AJUSTADO AQUI
+    fontSize: 14, // Aumenta o tamanho da fonte (era 12)
+    fontWeight: 'bold', // Deixa em negrito
+    color: '#888',
+    marginTop: 2,
+    textAlign: 'right',
+  },
+  chevronIcon: { // Estilo para o ícone de seta para não afetar o alinhamento
+    position: 'absolute',
+    right: 0,
+    top: '50%', // Ajusta para o meio
+    transform: [{ translateY: -9 }], // Centraliza verticalmente (-metade do tamanho)
   },
 });
 

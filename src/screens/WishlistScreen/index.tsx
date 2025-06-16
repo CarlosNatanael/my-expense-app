@@ -4,6 +4,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { WishlistItem, WishlistItemStatus } from '../../types';
+import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
 import { getWishlistItems, addWishlistItem, updateWishlistItem, deleteWishlistItem, populateWithMockWishlistData } from '../../data/wishlist';
 import { v4 as uuidv4 } from 'uuid';
 import { Ionicons } from '@expo/vector-icons';
@@ -118,7 +119,7 @@ const WishlistScreen: React.FC = () => {
     <View style={styles.itemContainer}>
       <View style={styles.itemDetails}>
         <Text style={[styles.itemName, item.status === 'bought' && styles.itemBought]}>{item.name}</Text>
-        <Text style={styles.itemPrice}>R$ {item.estimatedPrice.toFixed(2).replace('.', ',')}</Text>
+        <Text style={styles.itemPrice}>R$ {formatAmountWithThousandsSeparator(item.estimatedPrice)}</Text>
         {item.desiredDate && <Text style={styles.itemDate}>Data Desejada: {item.desiredDate}</Text>}
       </View>
       <View style={styles.itemActions}>

@@ -1,17 +1,20 @@
-import React, { useState } from 'react'; // Importe useState
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native'; // Importe Platform
+// src/components/Header/index.tsx
+
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FilterType } from '../FilterTabs';
+import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter'; // <--- IMPORTAR
 
 interface HeaderProps {
   currentMonth: string;
   balance: number;
   onPressPreviousMonth: () => void;
   onPressNextMonth: () => void;
-  onDateChange: (newDate: Date) => void; // <--- Alterado: agora passa a nova data
-  selectedDate: Date; // <--- Novo: para inicializar o calendário
+  onDateChange: (newDate: Date) => void;
+  selectedDate: Date;
   currentFilter: FilterType;
 }
 
@@ -21,17 +24,28 @@ const Header: React.FC<HeaderProps> = ({
   onPressPreviousMonth,
   onPressNextMonth,
   onDateChange,
-  selectedDate, // Recebe a data atual do mês da HomeScreen
+  selectedDate,
+  currentFilter,
 }) => {
   const statusBarHeight = Constants.statusBarHeight;
-  const [showDatePicker, setShowDatePicker] = useState(false); // Estado para controlar o DatePicker
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleDateChange = (event: any, date?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios'); // Fecha o picker no iOS após seleção
+    setShowDatePicker(Platform.OS === 'ios');
     if (date) {
-      onDateChange(date); // Chama a função de callback passada pela HomeScreen
+      onDateChange(date);
     }
   };
+
+  // Lógica para formatar o balanço: remove o sinal se o filtro for 'expense'
+  const formattedBalance = currentFilter === 'expense'
+    ? `R$ ${formatAmountWithThousandsSeparator(Math.abs(balance))}` // Usar a nova função
+    : `R$ ${formatAmountWithThousandsSeparator(balance)}`; // Usar a nova função
+
+  console.log('Header: currentFilter recebido:', currentFilter);
+  console.log('Header: formattedBalance calculado:', formattedBalance);
+  console.log('Header: balance original:', balance);
+
 
   return (
     <View style={[styles.container, { paddingTop: statusBarHeight + 10 }]}>
@@ -48,20 +62,22 @@ const Header: React.FC<HeaderProps> = ({
           <Ionicons name="calendar-outline" size={24} color="#333" />
         </TouchableOpacity>
       </View>
+
       {/* DatePicker */}
       {showDatePicker && (
         <DateTimePicker
           testID="monthYearPicker"
-          value={selectedDate} // Usa a data da HomeScreen
-          mode="date" // Modo 'date' permite selecionar mês e ano
-          display={Platform.OS === 'ios' ? 'spinner' : 'calendar'} // 'spinner' para iOS é bom para seleção de mês/ano
+          value={selectedDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
           onChange={handleDateChange}
         />
       )}
+
       {/* Balance Section */}
       <View style={styles.balanceContainer}>
         <Text style={styles.balanceLabel}>Balanço do mês</Text>
-        <Text style={styles.balanceValue}>R$ {balance.toFixed(2).replace('.', ',')}</Text>
+        <Text style={styles.balanceValue}>{formattedBalance}</Text>
       </View>
     </View>
   );

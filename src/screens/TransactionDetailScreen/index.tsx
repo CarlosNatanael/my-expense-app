@@ -4,7 +4,8 @@ import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { Transaction } from '../../types';
-import { getTransactions, deleteTransaction, updateTransaction } from '../../data/transactions'; // Importe updateTransaction
+import { getTransactions, deleteTransaction, updateTransaction } from '../../data/transactions';
+import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
 import Toast from 'react-native-toast-message';
 
 type TransactionDetailScreenRouteProp = RouteProp<RootStackParamList, 'TransactionDetail'>;
@@ -129,7 +130,7 @@ const TransactionDetailScreen: React.FC = () => {
     );
   }
 
-  const formattedAmount = `R$ ${transaction.amount.toFixed(2).replace('.', ',')}`;
+  const formattedAmount = `${transaction.type === 'expense' ? '-' : '+'} R$ ${formatAmountWithThousandsSeparator(transaction.amount)}`;
   const amountColor = transaction.type === 'expense' ? '#E74C3C' : '#2ECC71';
 
   return (
@@ -194,7 +195,7 @@ const TransactionDetailScreen: React.FC = () => {
           </View>
           <View style={styles.detailCard}>
             <Text style={styles.label}>Valor Total da Compra:</Text>
-            <Text style={styles.value}>R$ {transaction.totalAmount?.toFixed(2).replace('.', ',') || 'N/A'}</Text>
+            <Text style={styles.value}>R$ {formatAmountWithThousandsSeparator(transaction.totalAmount || 0) || 'N/A'}</Text>
           </View>
           <View style={styles.detailCard}>
             <Text style={styles.label}>Parcela Atual:</Text>

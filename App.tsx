@@ -1,3 +1,4 @@
+// carlosnatanael/minhadispesas/MinhaDespesas-1707fc6d5067d715666c9dabd9560bb22b7a156b/App.tsx
 import 'react-native-get-random-values';
 import 'react-native-gesture-handler';
 
@@ -9,10 +10,8 @@ import { createNativeStackNavigator, NativeStackScreenProps } from '@react-navig
 import HomeScreen from './src/screens/HomeScreen';
 import AddTransactionScreen from './src/screens/AddTransactionScreen';
 import TransactionDetailScreen from './src/screens/TransactionDetailScreen';
-import WishlistScreen from './src/screens/WishlistScreen/index'; // <--- NOVA IMPORTAÇÃO
+import WishlistScreen from './src/screens/WishlistScreen';
 import Toast from 'react-native-toast-message';
-
-import * as Notifications from 'expo-notifications';
 
 const Stack = createNativeStackNavigator();
 
@@ -20,47 +19,14 @@ export type RootStackParamList = {
   Home: undefined;
   AddTransaction: { transactionId?: string } | undefined;
   TransactionDetail: { transactionId: string };
-  Wishlist: undefined; // <--- NOVA ROTA
+  Wishlist: undefined;
 };
 
 type AddTransactionScreenProps = NativeStackScreenProps<RootStackParamList, 'AddTransaction'>;
 
 export default function App() {
   useEffect(() => {
-    // Código para permissões de notificação e agendamento (se ainda quiser manter)
-    // Se não quiser notificações por enquanto, pode remover o bloco useEffect
-    // e os imports de 'expo-notifications' e 'notificationScheduler'.
-    const requestPermissions = async () => {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== 'granted') {
-        alert('As notificações são necessárias para lembrar sobre despesas pendentes!');
-        return;
-      }
-      console.log('Permissão de notificação concedida!');
-    };
-
-    requestPermissions();
-    // scheduleDailyCheck(); // Se não for usar as notificações, remova esta linha
-
-    const subscription = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notificação recebida:', notification);
-    });
-
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notificação clicada:', response);
-    });
-
-    return () => {
-      Notifications.removeNotificationSubscription(subscription);
-      Notifications.removeNotificationSubscription(responseSubscription);
-    };
   }, []);
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <NavigationContainer>
@@ -86,7 +52,7 @@ export default function App() {
             component={TransactionDetailScreen}
             options={{ title: 'Detalhes do Lançamento' }}
           />
-          <Stack.Screen // <--- NOVA TELA
+          <Stack.Screen
             name="Wishlist"
             component={WishlistScreen}
             options={{ title: 'Minha Lista de Desejos' }}
@@ -97,7 +63,6 @@ export default function App() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

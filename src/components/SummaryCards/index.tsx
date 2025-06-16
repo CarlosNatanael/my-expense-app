@@ -1,31 +1,40 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // Para o ícone de círculo com sinal de + e -
+import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
 
 interface SummaryCardsProps {
   totalIncome: number;
-  totalExpenses: number;
+  totalPaidExpenses: number;
+  totalPendingExpenses: number;
 }
 
-const SummaryCards: React.FC<SummaryCardsProps> = ({ totalIncome, totalExpenses }) => {
+const SummaryCards: React.FC<SummaryCardsProps> = ({ totalIncome, totalPaidExpenses, totalPendingExpenses }) => {
   return (
     <View style={styles.container}>
       {/* Card de Receitas */}
       <View style={[styles.card, styles.incomeCard]}>
         <View style={styles.cardHeader}>
-          <Ionicons name="add-circle" size={24} color="#2ECC71" />{/* Ícone verde */}
-          <Text style={styles.cardTitle}>Receitas</Text>
+          <Ionicons name="add-circle" size={24} color="#2ECC71" />
+          <Text style={styles.cardTitle}>Receitas do Mês</Text>
         </View>
-        <Text style={styles.cardValue}>R$ {totalIncome.toFixed(2).replace('.', ',')}</Text>
+        <Text style={styles.cardValue}>R$ {formatAmountWithThousandsSeparator(totalIncome)}</Text>
       </View>
-
-      {/* Card de Despesas */}
-      <View style={[styles.card, styles.expenseCard]}>
+      {/* Card de Despesas - Total Pago */}
+      <View style={[styles.card, styles.paidExpenseCard]}>
         <View style={styles.cardHeader}>
-          <Ionicons name="remove-circle" size={24} color="#E74C3C" />{/* Ícone vermelho */}
-          <Text style={styles.cardTitle}>Despesas</Text>
+          <Ionicons name="checkmark-circle" size={24} color="#888" />
+          <Text style={styles.cardTitle}>Total Pago</Text>
         </View>
-        <Text style={styles.cardValue}>R$ {totalExpenses.toFixed(2).replace('.', ',')}</Text>
+        <Text style={styles.cardValue}>R$ {formatAmountWithThousandsSeparator(totalPaidExpenses)}</Text>
+      </View>
+      {/* Card de Despesas - A Pagar */}
+      <View style={[styles.card, styles.pendingExpenseCard]}>
+        <View style={styles.cardHeader}>
+          <Ionicons name="at-circle" size={24} color="#E74C3C" />
+          <Text style={styles.cardTitle}>A Pagar</Text>
+        </View>
+        <Text style={styles.cardValue}>R$ {formatAmountWithThousandsSeparator(totalPendingExpenses)}</Text>
       </View>
     </View>
   );
@@ -33,20 +42,20 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ totalIncome, totalExpenses 
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row', // Para colocar os cards lado a lado
-    justifyContent: 'space-around', // Espaçamento entre os cards
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     width: '100%',
-    paddingHorizontal: 20,
-    marginTop: 20, // Margem superior para separar do cabeçalho
+    paddingHorizontal: 10,
+    marginTop: 20,
   },
   card: {
     backgroundColor: '#fff',
     borderRadius: 15,
     padding: 15,
-    width: '48%', // Quase metade da largura, com um pequeno espaço entre eles
-    alignItems: 'flex-start', // Alinha o conteúdo à esquerda
-    elevation: 2, // Sombra para Android
-    shadowColor: '#000', // Sombra para iOS
+    width: '32%',
+    alignItems: 'flex-start',
+    elevation: 2,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -57,26 +66,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: '#555',
-    marginLeft: 8,
+    marginLeft: 5,
   },
   cardValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
   },
-  incomeCard: {
-    // Estilos específicos para o card de receita (fundo e borda se quiser)
-    // borderColor: '#2ECC71',
-    // borderWidth: 1,
-  },
-  expenseCard: {
-    // Estilos específicos para o card de despesa
-    // borderColor: '#E74C3C',
-    // borderWidth: 1,
-  },
+  incomeCard: {},
+  paidExpenseCard: {},
+  pendingExpenseCard: {},
 });
 
 export default SummaryCards;

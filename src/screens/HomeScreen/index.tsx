@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, Button, FlatList, Alert } from 'react-native';
+import { StyleSheet, Text, View, Button, FlatList, Alert,TouchableOpacity  } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
@@ -20,7 +20,7 @@ interface HomeScreenProps{}
 const HomeScreen: React.FC<HomeScreenProps> = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1));
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 6, 1));
   const [currentFilter, setCurrentFilter] = useState<FilterType>('all');
   const [displayedTransactions, setDisplayedTransactions] = useState<Transaction[]>([]);
   const [allStoredTransactions, setAllStoredTransactions] = useState<Transaction[]>([]);
@@ -53,21 +53,6 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
 
   const loadAndGenerateTransactions = useCallback(async () => {
     const loadedTransactions = await getTransactions();
-    
-    if (loadedTransactions.length === 0) {
-      Alert.alert(
-        "Dados de Exemplo",
-        "Nenhum dado encontrado. Adicionando dados de exemplo para você começar!",
-        [{ text: "OK", onPress: async () => {
-          const reloadedTransactions = await getTransactions();
-          setAllStoredTransactions(reloadedTransactions);
-          const generated = generateMonthlyTransactions(reloadedTransactions, currentDate);
-          const filtered = generated.filter(t => currentFilter === 'all' || t.type === currentFilter);
-          setDisplayedTransactions(filtered);
-        }}]
-      );
-      return;
-    }
 
     setAllStoredTransactions(loadedTransactions);
     
@@ -142,13 +127,20 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
 
       <SummaryCards
         totalIncome={totalIncome}
-        totalExpenses={totalPaidExpenses} // Corrija aqui
+        totalPaidExpenses={totalPaidExpenses}
+        totalPendingExpenses={totalPendingExpenses}
       />
 
       <FilterTabs
         currentFilter={currentFilter}
         onSelectFilter={handleSelectFilter}
       />
+
+      <View style={styles.wishlistButtonWrapper}>
+        <TouchableOpacity style={styles.wishlistButton} onPress={handleGoToWishlist}>
+          <Text style={styles.wishlistButtonText}>IR PARA LISTA DE DESEJOS</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={displayedTransactions}
@@ -164,11 +156,6 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
       />
 
       <FloatingActionButton onPress={handleAddTransaction} />
-
-      {/* Botão Temporário para a Lista de Desejos */}
-      <View style={styles.wishlistButtonContainer}>
-        <Button title="Ir para Lista de Desejos" onPress={handleGoToWishlist} />
-      </View>
     </View>
   );
 };
@@ -183,7 +170,7 @@ const styles = StyleSheet.create({
   },
   transactionsListContent: {
     paddingTop: 5,
-    paddingBottom: 80,
+    paddingBottom: 80, // Mantém o padding para o FAB
   },
   emptyListText: {
     textAlign: 'center',
@@ -191,11 +178,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#888',
   },
-  wishlistButtonContainer: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    left: 20,
+  wishlistButtonWrapper: { // Novo wrapper para o botão da wishlist
+    marginHorizontal: 20, // Padding lateral igual aos outros elementos
+    marginTop: 15, // Espaço entre as abas de filtro e o botão
+    marginBottom: 15, // Espaço entre o botão e a lista de transações
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    backgroundColor: '#007AFF', // Cor de fundo para o wrapper da sombra
+    borderRadius: 10,
+  },
+  wishlistButton: {
+    backgroundColor: '#007AFF', // Cor azul, igual ao FAB
+    borderRadius: 10,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wishlistButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 

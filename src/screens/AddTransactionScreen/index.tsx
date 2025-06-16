@@ -16,8 +16,8 @@ type AddTransactionScreenNavigationProp = StackNavigationProp<RootStackParamList
 
 
 const CATEGORIES = [
-  'Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Educação',
-  'Contas', 'Salário', 'Compras', 'Cartão', 'Outros'
+  'Alimentação','Família', 'Transporte', 'Moradia', 'Pets', 'Lazer', 'Saúde', 'Educação',
+  'Contas', 'Salário', 'Compras', 'Cartão', 'Esporte', 'Outros'
 ];
 
 const INSTALLMENT_FREQUENCIES = ['monthly', 'bimonthly', 'quarterly', 'semiannual', 'yearly'];

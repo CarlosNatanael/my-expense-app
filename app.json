@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Minhas Despesas",
-    "slug": "minhas-despesas-app",
+    "slug": "my-expense-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/STONKS_200px.png",
@@ -31,8 +31,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "16e2c92e-6093-402d-84ca-655899a2f161"
+        "projectId": "7599aee4-c578-4e62-93d6-75b975257934"
       }
-    }
+    },
+    "owner": "carlosnatanael"
   }
 }
