@@ -34,6 +34,9 @@
         "projectId": "7599aee4-c578-4e62-93d6-75b975257934"
       }
     },
-    "owner": "carlosnatanael"
+    "owner": "carlosnatanael",
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }

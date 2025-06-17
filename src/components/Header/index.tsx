@@ -16,6 +16,7 @@ interface HeaderProps {
   onDateChange: (newDate: Date) => void;
   selectedDate: Date;
   currentFilter: FilterType;
+  onPressAccount: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -26,6 +27,7 @@ const Header: React.FC<HeaderProps> = ({
   onDateChange,
   selectedDate,
   currentFilter,
+  onPressAccount,
 }) => {
   const statusBarHeight = Constants.statusBarHeight;
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -49,15 +51,25 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <View style={[styles.container, { paddingTop: statusBarHeight + 10 }]}>
-      {/* Top Section: Month Navigation and Calendar Icon */}
+      {/* Top Section: Month Navigation, Account Icon, and Calendar Icon */}
       <View style={styles.monthNavigationContainer}>
-        <TouchableOpacity onPress={onPressPreviousMonth}>
-          <Ionicons name="chevron-back" size={24} color="#333" />
+        {/* Ícone de Conta - Lado Esquerdo */}
+        <TouchableOpacity onPress={onPressAccount} style={styles.accountIcon}>
+          <Ionicons name="person-outline" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.monthText}>{currentMonth}</Text>
-        <TouchableOpacity onPress={onPressNextMonth}>
-          <Ionicons name="chevron-forward" size={24} color="#333" />
-        </TouchableOpacity>
+
+        {/* Setas de Navegação de Mês */}
+        <View style={styles.monthNavControls}>
+          <TouchableOpacity onPress={onPressPreviousMonth}>
+            <Ionicons name="chevron-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.monthText}>{currentMonth}</Text>
+          <TouchableOpacity onPress={onPressNextMonth}>
+            <Ionicons name="chevron-forward" size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Ícone de Calendário - Lado Direito */}
         <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.calendarIcon}>
           <Ionicons name="calendar-outline" size={24} color="#333" />
         </TouchableOpacity>
@@ -100,9 +112,20 @@ const styles = StyleSheet.create({
   monthNavigationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between', // <--- MUDANÇA AQUI: Espaça os itens
     marginBottom: 10,
-    position: 'relative',
+    position: 'relative', // Para posicionar ícones absolutos dentro
+  },
+  accountIcon: { // <--- NOVO ESTILO
+    position: 'absolute', // Posiciona absolutamente
+    left: 0,
+    padding: 5,
+  },
+  monthNavControls: { // <--- NOVO ESTILO: Container para as setas e texto do mês
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1, // Permite que ele ocupe o espaço central
   },
   monthText: {
     fontSize: 18,

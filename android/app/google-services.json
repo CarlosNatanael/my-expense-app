@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "230612860751",
+    "project_id": "my-expenses-app-61540",
+    "storage_bucket": "my-expenses-app-61540.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:230612860751:android:4a9cbf064fbc843236cf3a",
+        "android_client_info": {
+          "package_name": "com.carlosnatanael.minhasdespesas"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "230612860751-duo5soke81ijdab8gompc7e3790ht360.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.carlosnatanael.minhasdespesas",
+            "certificate_hash": "95eca0eeb8ebb76089e3abc19462453d0ee02526"
+          }
+        },
+        {
+          "client_id": "230612860751-7vk5ofbsihkjqfk7mboditviutl0ue2m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTVqiVLHgMDtuSnTE_SP8nzY0UnhtsZCU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "230612860751-7vk5ofbsihkjqfk7mboditviutl0ue2m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
