@@ -24,7 +24,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.carlosnatanael.minhasdespesas",
-      "versionCode": 8
+      "versionCode": 9
     },
     "web": {
       "favicon": "./assets/favicon.png"
