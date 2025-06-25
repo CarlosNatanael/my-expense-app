@@ -1,16 +1,29 @@
+// src/screens/WishlistScreen/index.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { WishlistItem, WishlistItemStatus } from '../../types';
+// ALTERE AQUI: Use as novas funções do AsyncStorage
 import { getWishlistItemsFromAsyncStorage, addWishlistItemToAsyncStorage, updateWishlistItemInAsyncStorage, deleteWishlistItemFromAsyncStorage, populateWithMockWishlistDataToAsyncStorage } from '../../data/wishlist'; 
 import { v4 as uuidv4 } from 'uuid';
 import { Ionicons } from '@expo/vector-icons';
 import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
 
+// Dados mockados para a lista de desejos
+const MOCKED_WISHLIST_ITEMS: WishlistItem[] = [
+  { id: uuidv4(), name: 'Novo Celular', estimatedPrice: 1500.00, desiredDate: '30/06/2025', status: 'pending', creationDate: '01/06/2025' },
+  { id: uuidv4(), name: 'Tênis de Corrida', estimatedPrice: 400.00, desiredDate: '15/07/2025', status: 'pending', creationDate: '05/06/2025' },
+  { id: uuidv4(), name: 'Fone de Ouvido Bluetooth', estimatedPrice: 250.00, desiredDate: '10/06/2025', status: 'pending', creationDate: '08/06/2025' },
+  { id: uuidv4(), name: 'Livro "A Arte de Lidar com o Dinheiro"', estimatedPrice: 80.00, desiredDate: '20/05/2025', status: 'bought', creationDate: '15/05/2025' },
+];
+
+
 type WishlistScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Wishlist'>;
 type WishlistScreenRouteProp = RouteProp<RootStackParamList, 'Wishlist'>;
+
 
 const WishlistScreen: React.FC = () => {
   const navigation = useNavigation<WishlistScreenNavigationProp>();
@@ -20,10 +33,22 @@ const WishlistScreen: React.FC = () => {
   const [newItemPrice, setNewItemPrice] = useState('');
 
   const loadWishlist = useCallback(async () => {
-
-    let items = await getWishlistItemsFromAsyncStorage();
+    let items = await getWishlistItemsFromAsyncStorage(); 
+    
+    if (items.length === 0) {
+      Alert.alert(
+        "Lista de Desejos Vazia",
+        "Adicionar itens de exemplo à sua lista de desejos?",
+        [{ text: "Não", style: "cancel" }, { text: "Sim", onPress: async () => {
+          await populateWithMockWishlistDataToAsyncStorage(MOCKED_WISHLIST_ITEMS); 
+          items = await getWishlistItemsFromAsyncStorage();
+          setWishlistItems(items);
+        }}]
+      );
+    }
     setWishlistItems(items);
   }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadWishlist();
@@ -35,6 +60,7 @@ const WishlistScreen: React.FC = () => {
       Alert.alert('Erro', 'Preencha o nome do item e um preço estimado válido.');
       return;
     }
+
     const today = new Date().toLocaleDateString('pt-BR');
     const newItem: WishlistItem = {
       id: uuidv4(),
@@ -43,9 +69,10 @@ const WishlistScreen: React.FC = () => {
       status: 'pending',
       creationDate: today,
     };
+
     try {
-      const updatedList = await addWishlistItemToAsyncStorage(newItem);
-      if (updatedList) { // Verifique se updatedList não é null
+      const updatedList = await addWishlistItemToAsyncStorage(newItem); 
+      if (updatedList) { 
         setWishlistItems(updatedList);
         setNewItemName('');
         setNewItemPrice('');
@@ -85,8 +112,8 @@ const WishlistScreen: React.FC = () => {
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Excluir', onPress: async () => {
           try {
-            await deleteWishlistItemFromAsyncStorage(itemId); // <--- CHAMA A FUNÇÃO ASYNCSTORAGE
-            const updatedList = await getWishlistItemsFromAsyncStorage(); // Recarrega para refletir a exclusão
+            await deleteWishlistItemFromAsyncStorage(itemId); 
+            const updatedList = await getWishlistItemsFromAsyncStorage(); 
             setWishlistItems(updatedList);
             Alert.alert('Sucesso', 'Item excluído.');
           } catch (error) {

@@ -4,7 +4,8 @@ import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { Transaction } from '../../types';
-import { getTransactionsFromAsyncStorage, deleteTransactionFromAsyncStorage, updateTransactionInAsyncStorage } from '../../data/transactions';
+// Altere import { getTransactions, deleteTransaction, updateTransaction } from '../../data/transactions';
+import { getTransactionsFromAsyncStorage, deleteTransactionFromAsyncStorage, updateTransactionInAsyncStorage } from '../../data/transactions'; 
 import Toast from 'react-native-toast-message';
 import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
 
@@ -23,11 +24,16 @@ const TransactionDetailScreen: React.FC = () => {
   const loadTransactionDetails = useCallback(async () => {
     setLoading(true);
     try {
-      // Busca transações do AsyncStorage
       const allTransactions = await getTransactionsFromAsyncStorage();
       let foundTransaction: Transaction | undefined;
-      // A busca é pelo ID da transação
-      foundTransaction = allTransactions.find(t => t.id === transactionId);
+
+      let idToSearch = transactionId;
+      if (transactionId && transactionId.length > 36 && transactionId.split('-').length > 5) {
+          idToSearch = transactionId.split('-').slice(0, 5).join('-');
+      }
+
+      foundTransaction = allTransactions.find(t => t.id === idToSearch);
+      
       setTransaction(foundTransaction || null);
     } catch (error) {
       console.error('Erro ao carregar detalhes da transação:', error);

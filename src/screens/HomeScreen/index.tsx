@@ -9,21 +9,23 @@ import SummaryCards from '../../components/SummaryCards';
 import FilterTabs, { FilterType } from '../../components/FilterTabs';
 import TransactionListItem from '../../components/TransactionListItem';
 import { Transaction, TransactionType } from '../../types';
-import { getTransactionsFromAsyncStorage } from '../../data/transactions';
+// Importe as funções de dados do AsyncStorage
+import { getTransactionsFromAsyncStorage, populateWithMockDataToAsyncStorage } from '../../data/transactions';
 import { generateMonthlyTransactions } from '../../utils/transactionGenerators';
 import FloatingActionButton from '../../components/FloatingActionButton';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-interface HomeScreenProps{}
+interface HomeScreenProps {}
 
 const HomeScreen: React.FC<HomeScreenProps> = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 6, 1));
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1));
   const [currentFilter, setCurrentFilter] = useState<FilterType>('all');
   const [displayedTransactions, setDisplayedTransactions] = useState<Transaction[]>([]);
   const [allStoredTransactions, setAllStoredTransactions] = useState<Transaction[]>([]);
+
   const calculateFinancialSummary = useCallback((trans: Transaction[]) => {
     let income = 0;
     let totalPaidExpenses = 0;

@@ -1,15 +1,11 @@
-// src/types/index.ts
-
-import { type } from "os";
-
 export type TransactionType = 'income' | 'expense';
 export type TransactionStatus = 'paid' | 'pending';
 
 export interface Transaction {
   id: string;
-  userId: string; // <--- NOVO CAMPO: ID do usuário Firebase
+  // userId: string; // Removido se não for usar login Google
   description: string;
-  amount: number; // Valor da parcela para parcelada, ou valor total para única/recorrente
+  amount: number;
   date: string; // Formato DD/MM/YYYY
 
   category: string;
@@ -25,12 +21,12 @@ export interface Transaction {
   // Campos opcionais para transações parceladas
   totalAmount?: number;      // Valor total da compra parcelada (calculado)
   totalInstallments?: number;
-  currentInstallment?: number;
+  currentInstallment?: number; // Qual parcela é esta (N/Total)
   originalPurchaseDate?: string;
   installmentGroupId?: string;
   installmentFrequency?: string;
+  paidOccurrences?: string[]; // <--- NOVO CAMPO: Array de strings 'YYYY-MM' para parcelas pagas
 }
-
 export type RecurringTransaction = Transaction & {
   frequency: 'monthly';
   startDate: string;
@@ -44,13 +40,14 @@ export type InstallmentTransaction = Transaction & {
   originalPurchaseDate: string;
   installmentGroupId: string;
   installmentFrequency: string;
+  paidOccurrences?: string[]; // Para garantir que está presente no tipo específico
 };
-
 // --- WishlistItem (já existente) ---
 export type WishlistItemStatus = 'pending' | 'bought';
 
 export interface WishlistItem {
   id: string;
+  // userId: string; // Removido se não for usar login Google
   name: string;
   estimatedPrice: number;
   desiredDate?: string;

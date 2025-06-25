@@ -4,15 +4,13 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { Transaction, TransactionType, TransactionStatus } from '../../types';
-// Altere import { addTransaction, getTransactions, updateTransaction } from '../../data/transactions';
-import { addTransactionToAsyncStorage, getTransactionsFromAsyncStorage, updateTransactionInAsyncStorage } from '../../data/transactions'; // <--- NOVAS FUNÇÕES ASYNCSTORAGE
+import { addTransactionToAsyncStorage, getTransactionsFromAsyncStorage, updateTransactionInAsyncStorage } from '../../data/transactions';
 import { v4 as uuidv4 } from 'uuid';
-
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 
-// Tipando as props de rota (NÃO RECEBE userId)
+// Tipando as props de rota
 type AddTransactionScreenRouteProp = RouteProp<RootStackParamList, 'AddTransaction'>;
 type AddTransactionScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddTransaction'>;
 
@@ -27,8 +25,6 @@ const INSTALLMENT_FREQUENCIES = ['monthly', 'bimonthly', 'quarterly', 'semiannua
 const AddTransactionScreen: React.FC = () => {
   const navigation = useNavigation<AddTransactionScreenNavigationProp>();
   const route = useRoute<AddTransactionScreenRouteProp>();
-  // userId virá dos parâmetros da rota (REMOVIDO)
-  // const userId = route.params?.userId; 
 
   const [id, setId] = useState(uuidv4());
   const [description, setDescription] = useState('');
@@ -46,15 +42,9 @@ const AddTransactionScreen: React.FC = () => {
 
   useEffect(() => {
     const loadTransactionForEdit = async () => {
-      // Remover a verificação de userId aqui
-      // if (!userId) { 
-      //   Alert.alert("Erro", "Faça login para adicionar ou editar transações.");
-      //   navigation.goBack();
-      //   return;
-      // }
+
       if (route.params?.transactionId) {
-        // Usa getTransactionsFromAsyncStorage
-        const transactionToEdit = (await getTransactionsFromAsyncStorage()).find(t => t.id === route.params?.transactionId); // <--- USA ASYNCSTORAGE
+        const transactionToEdit = (await getTransactionsFromAsyncStorage()).find(t => t.id === route.params?.transactionId);
         
         if (transactionToEdit) {
           setId(transactionToEdit.id);
@@ -78,7 +68,7 @@ const AddTransactionScreen: React.FC = () => {
       }
     };
     loadTransactionForEdit();
-  }, [route.params?.transactionId, navigation]); // userId NÃO É MAIS DEPENDÊNCIA
+  }, [route.params?.transactionId, navigation]);
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || date;
@@ -87,11 +77,7 @@ const AddTransactionScreen: React.FC = () => {
   };
 
   const handleSaveTransaction = async () => {
-    // Remover verificação de userId aqui
-    // if (!userId) {
-    //   Alert.alert("Erro", "Faça login para adicionar ou editar transações.");
-    //   return;
-    // }
+
     const parsedAmount = parseFloat(amount.replace(',', '.'));
 
     if (!description || isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -103,7 +89,7 @@ const AddTransactionScreen: React.FC = () => {
 
     let transactionToSave: Transaction = {
       id: uuidv4(),
-      userId: 'default-user', // Substitua por um valor real de userId se necessário
+      // userId: userId, // REMOVER userId
       description,
       amount: parsedAmount,
       date: formattedDate,
@@ -147,10 +133,10 @@ const AddTransactionScreen: React.FC = () => {
       if (route.params?.transactionId) {
         const existingTransId = route.params.transactionId;
         const updatedTransWithId: Transaction = { ...transactionToSave, id: existingTransId };
-        await updateTransactionInAsyncStorage(updatedTransWithId); // <--- USA ASYNCSTORAGE
+        await updateTransactionInAsyncStorage(updatedTransWithId);
         Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento atualizado com êxito.', visibilityTime: 2000, autoHide: true, topOffset: 30 });
       } else {
-        await addTransactionToAsyncStorage(transactionToSave); // <--- USA ASYNCSTORAGE
+        await addTransactionToAsyncStorage(transactionToSave);
         Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento salvo com êxito.', visibilityTime: 2000, autoHide: true, topOffset: 30 });
       }
       navigation.goBack();
