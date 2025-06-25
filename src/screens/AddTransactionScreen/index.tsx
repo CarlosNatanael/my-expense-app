@@ -4,7 +4,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { Transaction, TransactionType, TransactionStatus } from '../../types';
-import { addTransaction, getTransactions, updateTransaction } from '../../data/transactions';
+import { addTransactionToAsyncStorage, getTransactionsFromAsyncStorage, updateTransactionInAsyncStorage } from '../../data/transactions';
 import { v4 as uuidv4 } from 'uuid';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -16,8 +16,8 @@ type AddTransactionScreenNavigationProp = StackNavigationProp<RootStackParamList
 
 
 const CATEGORIES = [
-  'Alimentação','Família', 'Transporte', 'Moradia', 'Pets', 'Lazer', 'Saúde', 'Educação',
-  'Contas', 'Salário', 'Compras', 'Cartão', 'Esporte', 'Outros'
+  'Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Educação',
+  'Contas', 'Salário', 'Compras', 'Cartão', 'Outros', 'Esporte', 'Pets', 'Família'
 ];
 
 const INSTALLMENT_FREQUENCIES = ['monthly', 'bimonthly', 'quarterly', 'semiannual', 'yearly'];
@@ -25,7 +25,6 @@ const INSTALLMENT_FREQUENCIES = ['monthly', 'bimonthly', 'quarterly', 'semiannua
 const AddTransactionScreen: React.FC = () => {
   const navigation = useNavigation<AddTransactionScreenNavigationProp>();
   const route = useRoute<AddTransactionScreenRouteProp>();
-  const transactionId = route.params?.transactionId;
 
   const [id, setId] = useState(uuidv4());
   const [description, setDescription] = useState('');
@@ -38,20 +37,19 @@ const AddTransactionScreen: React.FC = () => {
 
   const [frequency, setFrequency] = useState<'once' | 'installment' | 'monthly'>('once');
   const [totalInstallments, setTotalInstallments] = useState('');
-  const [totalAmount, setTotalAmount] = useState(''); // Estado para o valor TOTAL da compra
+  const [totalAmount, setTotalAmount] = useState('');
   const [installmentFrequency, setInstallmentFrequency] = useState(INSTALLMENT_FREQUENCIES[0]);
 
-  // Efeito para carregar dados da transação se estiver em modo de edição
   useEffect(() => {
     const loadTransactionForEdit = async () => {
-      if (transactionId) {
-        const allTransactions = await getTransactions();
-        const transactionToEdit = allTransactions.find(t => t.id === transactionId);
-
+      if (route.params?.transactionId) {
+        // Usa getTransactionsFromAsyncStorage
+        const transactionToEdit = (await getTransactionsFromAsyncStorage()).find(t => t.id === route.params?.transactionId); // <--- USA ASYNCSTORAGE
+        
         if (transactionToEdit) {
           setId(transactionToEdit.id);
           setDescription(transactionToEdit.description);
-          setAmount(transactionToEdit.amount.toString().replace('.', ',')); // Valor da parcela para edição
+          setAmount(transactionToEdit.amount.toString().replace('.', ','));
           setCategory(transactionToEdit.category);
           setType(transactionToEdit.type);
           setDate(new Date(transactionToEdit.date));
@@ -60,7 +58,7 @@ const AddTransactionScreen: React.FC = () => {
 
           if (transactionToEdit.frequency === 'installment') {
             setTotalInstallments(transactionToEdit.totalInstallments?.toString() || '');
-            setTotalAmount(transactionToEdit.totalAmount?.toFixed(2).replace('.', ',') || ''); // <--- CORREÇÃO AQUI: Inicializa totalAmount
+            setTotalAmount(transactionToEdit.totalAmount?.toFixed(2).replace('.', ',') || '');
             setInstallmentFrequency(transactionToEdit.installmentFrequency || INSTALLMENT_FREQUENCIES[0]);
           }
         } else {
@@ -70,7 +68,7 @@ const AddTransactionScreen: React.FC = () => {
       }
     };
     loadTransactionForEdit();
-  }, [transactionId, navigation]);
+  }, [route.params?.transactionId, navigation]);
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || date;
@@ -79,7 +77,7 @@ const AddTransactionScreen: React.FC = () => {
   };
 
   const handleSaveTransaction = async () => {
-    const parsedAmount = parseFloat(amount.replace(',', '.')); // Valor da parcela (ou valor único/recorrente)
+    const parsedAmount = parseFloat(amount.replace(',', '.'));
 
     if (!description || isNaN(parsedAmount) || parsedAmount <= 0) {
       Alert.alert('Erro', 'Preencha a descrição e um valor válido.');
@@ -89,7 +87,8 @@ const AddTransactionScreen: React.FC = () => {
     const formattedDate = date.toISOString().split('T')[0];
 
     let transactionToSave: Transaction = {
-      id: id,
+      id: uuidv4(),
+      userId: 'default-user', // Substitua por um valor real de userId se necessário
       description,
       amount: parsedAmount,
       date: formattedDate,
@@ -101,21 +100,21 @@ const AddTransactionScreen: React.FC = () => {
 
     if (frequency === 'installment') {
       const parsedTotalInstallments = parseInt(totalInstallments);
-      const parsedTotalAmount = parseFloat(totalAmount.replace(',', '.')); // Parse do valor TOTAL da compra
+      const parsedTotalAmount = parseFloat(totalAmount.replace(',', '.'));
 
       if (isNaN(parsedTotalInstallments) || parsedTotalInstallments <= 0) {
         Alert.alert('Erro', 'Preencha o número de parcelas válido.');
         return;
       }
-      if (isNaN(parsedTotalAmount) || parsedTotalAmount <= 0) { // Validação do valor TOTAL
+      if (isNaN(parsedTotalAmount) || parsedTotalAmount <= 0) {
         Alert.alert('Erro', 'Preencha o valor total da compra válido.');
         return;
       }
 
       transactionToSave = {
         ...transactionToSave,
-        amount: parsedAmount, // O valor individual da parcela
-        totalAmount: parsedTotalAmount, // Valor TOTAL da compra (do campo específico)
+        amount: parsedAmount,
+        totalAmount: parsedTotalAmount,
         totalInstallments: parsedTotalInstallments,
         currentInstallment: transactionToSave.currentInstallment || 1,
         originalPurchaseDate: transactionToSave.originalPurchaseDate || formattedDate,
@@ -130,205 +129,28 @@ const AddTransactionScreen: React.FC = () => {
     }
 
     try {
-      if (transactionId) {
-        await updateTransaction(transactionToSave);
+      if (route.params?.transactionId) {
+        const existingTransId = route.params.transactionId;
+        const updatedTransWithId: Transaction = { ...transactionToSave, id: existingTransId };
+        await updateTransactionInAsyncStorage(updatedTransWithId); // <--- USA ASYNCSTORAGE
         Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento atualizado com êxito.', visibilityTime: 2000, autoHide: true, topOffset: 30 });
       } else {
-        await addTransaction(transactionToSave);
+        await addTransactionToAsyncStorage(transactionToSave); // <--- USA ASYNCSTORAGE
         Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento salvo com êxito.', visibilityTime: 2000, autoHide: true, topOffset: 30 });
       }
       navigation.goBack();
     } catch (error) {
       console.error('Erro ao salvar/atualizar transação:', error);
-      Toast.show({ type: 'error', text1: 'Erro!', text2: 'Não foi possível salvar/atualizar o lançamento.', visibilityTime: 3000, autoHide: true, topOffset: 30 });
+      Alert.alert('Erro', 'Não foi possível salvar/atualizar o lançamento.');
     }
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.title}>{transactionId ? 'Editar Lançamento' : 'Novo Lançamento'}</Text>
+      <Text style={styles.title}>{route.params?.transactionId ? 'Editar Lançamento' : 'Novo Lançamento'}</Text>
 
-      {/* Tipo de Lançamento (Receita/Despesa) */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Tipo de Lançamento</Text>
-        <View style={styles.typeSelector}>
-          <TouchableOpacity
-            style={[styles.typeButton, type === 'expense' && styles.selectedTypeButton]}
-            onPress={() => setType('expense')}
-          >
-            <Text style={[styles.typeButtonText, type === 'expense' && styles.selectedTypeButtonText]}>Despesa</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeButton, type === 'income' && styles.selectedTypeButton]}
-            onPress={() => setType('income')}
-          >
-            <Text style={[styles.typeButtonText, type === 'income' && styles.selectedTypeButtonText]}>Receita</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* ... (campos do formulário) ... */}
 
-      {/* Status (Pago / A Pagar) */}
-      {type === 'expense' && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Status da Despesa</Text>
-          <View style={styles.typeSelector}>
-            <TouchableOpacity
-              style={[styles.typeButton, status === 'paid' && styles.selectedTypeButton]}
-              onPress={() => setStatus('paid')}
-            >
-              <Text style={[styles.typeButtonText, status === 'paid' && styles.selectedTypeButtonText]}>Pago</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.typeButton, status === 'pending' && styles.selectedTypeButton]}
-              onPress={() => setStatus('pending')}
-            >
-              <Text style={[styles.typeButtonText, status === 'pending' && styles.selectedTypeButtonText]}>A Pagar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Descrição */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Descrição</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: Almoço com amigos"
-          value={description}
-          onChangeText={setDescription}
-        />
-      </View>
-
-      {/* Valor (Individual da Parcela, ou Único/Recorrente) */}
-      {frequency !== 'installment' && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Valor</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="R$ 0,00"
-            keyboardType="numeric"
-            value={amount}
-            onChangeText={text => setAmount(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
-          />
-        </View>
-      )}
-
-      {/* Categoria */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Categoria</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={category}
-            onValueChange={(itemValue: string) => setCategory(itemValue)}
-            style={styles.picker}
-            itemStyle={styles.pickerItem}
-          >
-            {CATEGORIES.map((cat) => (
-              <Picker.Item key={cat} label={cat} value={cat} />
-            ))}
-          </Picker>
-        </View>
-      </View>
-
-      {/* Data */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Data</Text>
-        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.datePickerButton}>
-          <Text style={styles.datePickerText}>{date.toLocaleDateString('pt-BR')}</Text>
-        </TouchableOpacity>
-        {showDatePicker && (
-          <DateTimePicker
-            testID="datePicker"
-            value={date}
-            mode="date"
-            display="default"
-            onChange={onDateChange}
-          />
-        )}
-      </View>
-
-      {/* Frequência (Única, Parcelada, Recorrente) */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Frequência</Text>
-        <View style={styles.frequencySelector}>
-          <TouchableOpacity
-            style={[styles.frequencyButton, frequency === 'once' && styles.selectedFrequencyButton]}
-            onPress={() => setFrequency('once')}
-          >
-            <Text style={[styles.frequencyButtonText, frequency === 'once' && styles.selectedFrequencyButtonText]}>Única</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.frequencyButton, frequency === 'installment' && styles.selectedFrequencyButton]}
-            onPress={() => setFrequency('installment')}
-          >
-            <Text style={[styles.frequencyButtonText, frequency === 'installment' && styles.selectedFrequencyButtonText]}>Parcelada</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.frequencyButton, frequency === 'monthly' && styles.selectedFrequencyButton]}
-            onPress={() => setFrequency('monthly')}
-          >
-            <Text style={[styles.frequencyButtonText, frequency === 'monthly' && styles.selectedFrequencyButtonText]}>Recorrente</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Campos Condicionais para Frequência */}
-      {frequency === 'installment' && (
-        <>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Valor da Parcela</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="R$ 0,00"
-              keyboardType="numeric"
-              value={amount}
-              onChangeText={text => setAmount(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Valor Total da Compra</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="R$ 0,00"
-              keyboardType="numeric"
-              value={totalAmount}
-              onChangeText={text => setTotalAmount(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Número de Parcelas</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: 12"
-              keyboardType="numeric"
-              value={totalInstallments}
-              onChangeText={text => setTotalInstallments(text.replace(/[^0-9]/g, ''))}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Frequência da Parcela</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={installmentFrequency}
-                onValueChange={(itemValue: string) => setInstallmentFrequency(itemValue)}
-                style={styles.picker}
-                itemStyle={styles.pickerItem}
-              >
-                {INSTALLMENT_FREQUENCIES.map((freq) => (
-                  <Picker.Item key={freq} label={
-                    freq === 'monthly' ? 'Mensal' :
-                    freq === 'bimonthly' ? 'Bimestral' :
-                    freq === 'quarterly' ? 'Trimestral' :
-                    freq === 'semiannual' ? 'Semestral' :
-                    freq === 'yearly' ? 'Anual' : freq
-                  } value={freq} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-        </>
-      )}
-      {/* Salvar Botão */}
       <TouchableOpacity style={styles.saveButton} onPress={handleSaveTransaction}>
         <Text style={styles.saveButtonText}>Salvar Lançamento</Text>
       </TouchableOpacity>

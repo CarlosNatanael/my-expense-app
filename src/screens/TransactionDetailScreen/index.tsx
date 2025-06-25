@@ -4,10 +4,11 @@ import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { Transaction } from '../../types';
-import { getTransactions, deleteTransaction, updateTransaction } from '../../data/transactions';
-import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
+import { getTransactionsFromAsyncStorage, deleteTransactionFromAsyncStorage, updateTransactionInAsyncStorage } from '../../data/transactions';
 import Toast from 'react-native-toast-message';
+import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
 
+// Tipando a rota
 type TransactionDetailScreenRouteProp = RouteProp<RootStackParamList, 'TransactionDetail'>;
 type TransactionDetailScreenNavigationProp = StackNavigationProp<RootStackParamList, 'TransactionDetail'>;
 
@@ -22,23 +23,11 @@ const TransactionDetailScreen: React.FC = () => {
   const loadTransactionDetails = useCallback(async () => {
     setLoading(true);
     try {
-      const allTransactions = await getTransactions();
+      // Busca transações do AsyncStorage
+      const allTransactions = await getTransactionsFromAsyncStorage();
       let foundTransaction: Transaction | undefined;
-
-      // Busca o registro mestre original
-      // Verifica se o transactionId da rota é um ID de ocorrência gerado (com sufixo -ANO-MES)
-      // Isso funciona porque UUIDs tem 5 hífens, nossos sufixos adicionam mais.
-      const isGeneratedInstanceId = transactionId.split('-').length > 5;
-
-      if (isGeneratedInstanceId) {
-        // Se for um ID de ocorrência gerado, extrai o ID original (o UUID)
-        const originalId = transactionId.split('-').slice(0, 5).join('-');
-        foundTransaction = allTransactions.find(t => t.id === originalId);
-      } else {
-        // Se não for um ID de ocorrência gerado, procura pelo ID exato (para transações únicas ou mestres)
-        foundTransaction = allTransactions.find(t => t.id === transactionId);
-      }
-
+      // A busca é pelo ID da transação
+      foundTransaction = allTransactions.find(t => t.id === transactionId);
       setTransaction(foundTransaction || null);
     } catch (error) {
       console.error('Erro ao carregar detalhes da transação:', error);
@@ -57,7 +46,6 @@ const TransactionDetailScreen: React.FC = () => {
 
   const handleDeleteTransaction = async () => {
     if (!transaction) return;
-
     Alert.alert(
       'Confirmar Exclusão',
       `Tem certeza que deseja excluir "${transaction.description}"?`,
@@ -67,7 +55,7 @@ const TransactionDetailScreen: React.FC = () => {
           text: 'Excluir',
           onPress: async () => {
             try {
-              await deleteTransaction(transaction.id);
+              await deleteTransactionFromAsyncStorage(transaction.id);
               Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento excluído com êxito.', });
               navigation.goBack();
             } catch (error) {
@@ -86,7 +74,6 @@ const TransactionDetailScreen: React.FC = () => {
     }
   };
 
-  // Novo: Função para marcar como pago
   const handleMarkAsPaid = async () => {
     if (!transaction) return;
 
@@ -100,9 +87,9 @@ const TransactionDetailScreen: React.FC = () => {
           onPress: async () => {
             try {
               const updatedTrans = { ...transaction, status: 'paid' as Transaction['status'] };
-              await updateTransaction(updatedTrans); // Atualiza no AsyncStorage
+              await updateTransactionInAsyncStorage(updatedTrans);
               Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento marcado como pago.', });
-              navigation.goBack(); // Volta para atualizar a Home (via useFocusEffect)
+              navigation.goBack();
             } catch (error) {
               console.error('Erro ao marcar como pago:', error);
               Toast.show({ type: 'error', text1: 'Erro!', text2: 'Não foi possível marcar como pago.', });
@@ -136,37 +123,30 @@ const TransactionDetailScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.header}>Detalhes do Lançamento</Text>
-
       <View style={styles.detailCard}>
         <Text style={styles.label}>Descrição:</Text>
         <Text style={styles.value}>{transaction.description}</Text>
       </View>
-
-    <View style={styles.detailCard}>
-      <Text style={styles.label}>Valor:</Text>
-      <Text style={[styles.value, { color: amountColor }]}>{formattedAmount}</Text>
-    </View>
-
+      <View style={styles.detailCard}>
+        <Text style={styles.label}>Valor:</Text>
+        <Text style={[styles.value, { color: amountColor }]}>{formattedAmount}</Text>
+      </View>
       <View style={styles.detailCard}>
         <Text style={styles.label}>Categoria:</Text>
         <Text style={styles.value}>{transaction.category}</Text>
       </View>
-
       <View style={styles.detailCard}>
         <Text style={styles.label}>Tipo:</Text>
         <Text style={styles.value}>{transaction.type === 'expense' ? 'Despesa' : 'Receita'}</Text>
       </View>
-
       <View style={styles.detailCard}>
         <Text style={styles.label}>Data:</Text>
         <Text style={styles.value}>{new Date(transaction.date).toLocaleDateString('pt-BR')}</Text>
       </View>
-
       <View style={styles.detailCard}>
         <Text style={styles.label}>Status:</Text>
         <Text style={styles.value}>{transaction.status === 'paid' ? 'Pago' : 'Pendente'}</Text>
       </View>
-
       {/* Detalhes de Frequência */}
       {transaction.frequency === 'monthly' && (
         <>
@@ -207,7 +187,6 @@ const TransactionDetailScreen: React.FC = () => {
           </View>
         </>
       )}
-
       {/* Botões de Ação */}
       <View style={styles.actionButtonsContainer}>
         {transaction.type === 'expense' && transaction.status === 'pending' && (
@@ -225,7 +204,6 @@ const TransactionDetailScreen: React.FC = () => {
     </ScrollView>
   );
 };
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f8f8', },
   contentContainer: { padding: 20, paddingBottom: 40, },
@@ -240,15 +218,15 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f8f8', },
   loadingText: { marginTop: 10, fontSize: 16, color: '#888', },
   errorText: { fontSize: 16, color: '#E74C3C', },
-  actionButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 30, flexWrap: 'wrap' }, // Adicionado flexWrap
+  actionButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 30, flexWrap: 'wrap' },
   actionButton: {
     paddingVertical: 12, paddingHorizontal: 15, borderRadius: 10, elevation: 3,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3,
-    margin: 5, // Espaçamento entre os botões
+    margin: 5,
   },
   editButton: { backgroundColor: '#007AFF', },
   deleteButton: { backgroundColor: '#E74C3C', },
-  markAsPaidButton: { backgroundColor: '#2ECC71', }, // Novo estilo para o botão "Pagar"
+  markAsPaidButton: { backgroundColor: '#2ECC71', },
   actionButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold', },
 });
 

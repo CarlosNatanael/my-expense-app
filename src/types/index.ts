@@ -1,12 +1,13 @@
-import { type } from "os";
-
 // src/types/index.ts
+
+import { type } from "os";
 
 export type TransactionType = 'income' | 'expense';
 export type TransactionStatus = 'paid' | 'pending';
 
 export interface Transaction {
   id: string;
+  userId: string; // <--- NOVO CAMPO: ID do usuário Firebase
   description: string;
   amount: number; // Valor da parcela para parcelada, ou valor total para única/recorrente
   date: string; // Formato DD/MM/YYYY
@@ -45,15 +46,15 @@ export type InstallmentTransaction = Transaction & {
   installmentFrequency: string;
 };
 
-// --- NOVO TIPO: WishlistItem ---
-export type WishlistItemStatus = 'pending' | 'bought'; // Pendente ou Comprado
+// --- WishlistItem (já existente) ---
+export type WishlistItemStatus = 'pending' | 'bought';
 
 export interface WishlistItem {
   id: string;
-  name: string; // Nome do item desejado (ex: "Novo Celular")
-  estimatedPrice: number; // Preço estimado (ex: 1500.00)
-  desiredDate?: string; // Data desejada para a compra (ex: "DD/MM/YYYY")
-  status: WishlistItemStatus; // Status: 'pending' ou 'bought'
-  notes?: string; // Notas adicionais
-  creationDate: string; // Data em que o item foi adicionado à lista
+  name: string;
+  estimatedPrice: number;
+  desiredDate?: string;
+  status: WishlistItemStatus;
+  notes?: string;
+  creationDate: string;
 }

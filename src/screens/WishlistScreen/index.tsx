@@ -1,47 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { WishlistItem, WishlistItemStatus } from '../../types';
-import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
-import { getWishlistItems, addWishlistItem, updateWishlistItem, deleteWishlistItem, populateWithMockWishlistData } from '../../data/wishlist';
+import { getWishlistItemsFromAsyncStorage, addWishlistItemToAsyncStorage, updateWishlistItemInAsyncStorage, deleteWishlistItemFromAsyncStorage, populateWithMockWishlistDataToAsyncStorage } from '../../data/wishlist'; 
 import { v4 as uuidv4 } from 'uuid';
 import { Ionicons } from '@expo/vector-icons';
-
-// Dados mockados para a lista de desejos
-const MOCKED_WISHLIST_ITEMS: WishlistItem[] = [
-  { id: uuidv4(), name: 'Novo Celular', estimatedPrice: 1500.00, desiredDate: '30/06/2025', status: 'pending', creationDate: '01/06/2025' },
-  { id: uuidv4(), name: 'Tênis de Corrida', estimatedPrice: 400.00, desiredDate: '15/07/2025', status: 'pending', creationDate: '05/06/2025' },
-  { id: uuidv4(), name: 'Fone de Ouvido Bluetooth', estimatedPrice: 250.00, desiredDate: '10/06/2025', status: 'pending', creationDate: '08/06/2025' },
-  { id: uuidv4(), name: 'Livro "A Arte de Lidar com o Dinheiro"', estimatedPrice: 80.00, desiredDate: '20/05/2025', status: 'bought', creationDate: '15/05/2025' },
-];
-
+import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
 
 type WishlistScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Wishlist'>;
+type WishlistScreenRouteProp = RouteProp<RootStackParamList, 'Wishlist'>;
 
 const WishlistScreen: React.FC = () => {
   const navigation = useNavigation<WishlistScreenNavigationProp>();
+  const route = useRoute<WishlistScreenRouteProp>();
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
 
   const loadWishlist = useCallback(async () => {
-    let items = await getWishlistItems();
-    if (items.length === 0) {
-      Alert.alert(
-        "Lista de Desejos Vazia",
-        "Adicionar itens de exemplo à sua lista de desejos?",
-        [{ text: "Não", style: "cancel" }, { text: "Sim", onPress: async () => {
-          await populateWithMockWishlistData(MOCKED_WISHLIST_ITEMS);
-          items = await getWishlistItems();
-          setWishlistItems(items);
-        }}]
-      );
-    }
+
+    let items = await getWishlistItemsFromAsyncStorage();
     setWishlistItems(items);
   }, []);
-
   useFocusEffect(
     useCallback(() => {
       loadWishlist();
@@ -53,8 +35,7 @@ const WishlistScreen: React.FC = () => {
       Alert.alert('Erro', 'Preencha o nome do item e um preço estimado válido.');
       return;
     }
-
-    const today = new Date().toLocaleDateString('pt-BR'); // Data de criação
+    const today = new Date().toLocaleDateString('pt-BR');
     const newItem: WishlistItem = {
       id: uuidv4(),
       name: newItemName.trim(),
@@ -62,12 +43,13 @@ const WishlistScreen: React.FC = () => {
       status: 'pending',
       creationDate: today,
     };
-
     try {
-      const updatedList = await addWishlistItem(newItem);
-      setWishlistItems(updatedList);
-      setNewItemName('');
-      setNewItemPrice('');
+      const updatedList = await addWishlistItemToAsyncStorage(newItem);
+      if (updatedList) { // Verifique se updatedList não é null
+        setWishlistItems(updatedList);
+        setNewItemName('');
+        setNewItemPrice('');
+      }
     } catch (error) {
       console.error('Erro ao adicionar item à lista de desejos:', error);
       Alert.alert('Erro', 'Não foi possível adicionar o item.');
@@ -83,7 +65,7 @@ const WishlistScreen: React.FC = () => {
         { text: 'Sim', onPress: async () => {
           try {
             const updatedItem = { ...item, status: 'bought' as WishlistItemStatus };
-            const updatedList = await updateWishlistItem(updatedItem);
+            const updatedList = await updateWishlistItemInAsyncStorage(updatedItem);
             setWishlistItems(updatedList);
             Alert.alert('Sucesso', `"${item.name}" marcado como comprado!`);
           } catch (error) {
@@ -103,7 +85,8 @@ const WishlistScreen: React.FC = () => {
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Excluir', onPress: async () => {
           try {
-            const updatedList = await deleteWishlistItem(itemId);
+            await deleteWishlistItemFromAsyncStorage(itemId); // <--- CHAMA A FUNÇÃO ASYNCSTORAGE
+            const updatedList = await getWishlistItemsFromAsyncStorage(); // Recarrega para refletir a exclusão
             setWishlistItems(updatedList);
             Alert.alert('Sucesso', 'Item excluído.');
           } catch (error) {

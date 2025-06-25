@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/STONKS_200px.png",
+    "scheme": "minhasdespesasapp",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -13,6 +14,9 @@
     },
     "assetBundlePatterns": [
       "**/*"
+    ],
+    "plugins": [
+      "expo-web-browser"
     ],
     "ios": {
       "supportsTablet": true,
@@ -24,7 +28,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.carlosnatanael.minhasdespesas",
-      "versionCode": 9
+      "versionCode": 12
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,9 +38,6 @@
         "projectId": "7599aee4-c578-4e62-93d6-75b975257934"
       }
     },
-    "owner": "carlosnatanael",
-    "plugins": [
-      "expo-web-browser"
-    ]
+    "owner": "carlosnatanael"
   }
 }
