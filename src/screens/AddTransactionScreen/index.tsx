@@ -4,13 +4,15 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { Transaction, TransactionType, TransactionStatus } from '../../types';
-import { addTransactionToAsyncStorage, getTransactionsFromAsyncStorage, updateTransactionInAsyncStorage } from '../../data/transactions';
+// Altere import { addTransaction, getTransactions, updateTransaction } from '../../data/transactions';
+import { addTransactionToAsyncStorage, getTransactionsFromAsyncStorage, updateTransactionInAsyncStorage } from '../../data/transactions'; // <--- NOVAS FUNÇÕES ASYNCSTORAGE
 import { v4 as uuidv4 } from 'uuid';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import Toast from 'react-native-toast-message';
 
+// Tipando as props de rota (NÃO RECEBE userId)
 type AddTransactionScreenRouteProp = RouteProp<RootStackParamList, 'AddTransaction'>;
 type AddTransactionScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddTransaction'>;
 
@@ -25,6 +27,8 @@ const INSTALLMENT_FREQUENCIES = ['monthly', 'bimonthly', 'quarterly', 'semiannua
 const AddTransactionScreen: React.FC = () => {
   const navigation = useNavigation<AddTransactionScreenNavigationProp>();
   const route = useRoute<AddTransactionScreenRouteProp>();
+  // userId virá dos parâmetros da rota (REMOVIDO)
+  // const userId = route.params?.userId; 
 
   const [id, setId] = useState(uuidv4());
   const [description, setDescription] = useState('');
@@ -42,6 +46,12 @@ const AddTransactionScreen: React.FC = () => {
 
   useEffect(() => {
     const loadTransactionForEdit = async () => {
+      // Remover a verificação de userId aqui
+      // if (!userId) { 
+      //   Alert.alert("Erro", "Faça login para adicionar ou editar transações.");
+      //   navigation.goBack();
+      //   return;
+      // }
       if (route.params?.transactionId) {
         // Usa getTransactionsFromAsyncStorage
         const transactionToEdit = (await getTransactionsFromAsyncStorage()).find(t => t.id === route.params?.transactionId); // <--- USA ASYNCSTORAGE
@@ -68,7 +78,7 @@ const AddTransactionScreen: React.FC = () => {
       }
     };
     loadTransactionForEdit();
-  }, [route.params?.transactionId, navigation]);
+  }, [route.params?.transactionId, navigation]); // userId NÃO É MAIS DEPENDÊNCIA
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || date;
@@ -77,6 +87,11 @@ const AddTransactionScreen: React.FC = () => {
   };
 
   const handleSaveTransaction = async () => {
+    // Remover verificação de userId aqui
+    // if (!userId) {
+    //   Alert.alert("Erro", "Faça login para adicionar ou editar transações.");
+    //   return;
+    // }
     const parsedAmount = parseFloat(amount.replace(',', '.'));
 
     if (!description || isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -149,8 +164,187 @@ const AddTransactionScreen: React.FC = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>{route.params?.transactionId ? 'Editar Lançamento' : 'Novo Lançamento'}</Text>
 
-      {/* ... (campos do formulário) ... */}
+      {/* Tipo de Lançamento (Receita/Despesa) */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Tipo de Lançamento</Text>
+        <View style={styles.typeSelector}>
+          <TouchableOpacity
+            style={[styles.typeButton, type === 'expense' && styles.selectedTypeButton]}
+            onPress={() => setType('expense')}
+          >
+            <Text style={[styles.typeButtonText, type === 'expense' && styles.selectedTypeButtonText]}>Despesa</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.typeButton, type === 'income' && styles.selectedTypeButton]}
+            onPress={() => setType('income')}
+          >
+            <Text style={[styles.typeButtonText, type === 'income' && styles.selectedTypeButtonText]}>Receita</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
+      {/* Status (Pago / A Pagar) */}
+      {type === 'expense' && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Status da Despesa</Text>
+          <View style={styles.typeSelector}>
+            <TouchableOpacity
+              style={[styles.typeButton, status === 'paid' && styles.selectedTypeButton]}
+              onPress={() => setStatus('paid')}
+            >
+              <Text style={[styles.typeButtonText, status === 'paid' && styles.selectedTypeButtonText]}>Pago</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.typeButton, status === 'pending' && styles.selectedTypeButton]}
+              onPress={() => setStatus('pending')}
+            >
+              <Text style={[styles.typeButtonText, status === 'pending' && styles.selectedTypeButtonText]}>A Pagar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Descrição */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Descrição</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Ex: Almoço com amigos"
+          value={description}
+          onChangeText={setDescription}
+        />
+      </View>
+
+      {/* Valor (Individual da Parcela, ou Único/Recorrente) */}
+      {frequency !== 'installment' && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Valor</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="R$ 0,00"
+            keyboardType="numeric"
+            value={amount}
+            onChangeText={text => setAmount(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
+          />
+        </View>
+      )}
+
+      {/* Categoria */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Categoria</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={category}
+            onValueChange={(itemValue: string) => setCategory(itemValue)}
+            style={styles.picker}
+            itemStyle={styles.pickerItem}
+          >
+            {CATEGORIES.map((cat) => (
+              <Picker.Item key={cat} label={cat} value={cat} />
+            ))}
+          </Picker>
+        </View>
+      </View>
+
+      {/* Data */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Data</Text>
+        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.datePickerButton}>
+          <Text style={styles.datePickerText}>{date.toLocaleDateString('pt-BR')}</Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            testID="datePicker"
+            value={date}
+            mode="date"
+            display="default"
+            onChange={onDateChange}
+          />
+        )}
+      </View>
+
+      {/* Frequência (Única, Parcelada, Recorrente) */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Frequência</Text>
+        <View style={styles.frequencySelector}>
+          <TouchableOpacity
+            style={[styles.frequencyButton, frequency === 'once' && styles.selectedFrequencyButton]}
+            onPress={() => setFrequency('once')}
+          >
+            <Text style={[styles.frequencyButtonText, frequency === 'once' && styles.selectedFrequencyButtonText]}>Única</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.frequencyButton, frequency === 'installment' && styles.selectedFrequencyButton]}
+            onPress={() => setFrequency('installment')}
+          >
+            <Text style={[styles.frequencyButtonText, frequency === 'installment' && styles.selectedFrequencyButtonText]}>Parcelada</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.frequencyButton, frequency === 'monthly' && styles.selectedFrequencyButton]}
+            onPress={() => setFrequency('monthly')}
+          >
+            <Text style={[styles.frequencyButtonText, frequency === 'monthly' && styles.selectedFrequencyButtonText]}>Recorrente</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Campos Condicionais para Frequência */}
+      {frequency === 'installment' && (
+        <>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Valor da Parcela</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="R$ 0,00"
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={text => setAmount(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Valor Total da Compra</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="R$ 0,00"
+              keyboardType="numeric"
+              value={totalAmount}
+              onChangeText={text => setTotalAmount(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Número de Parcelas</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex: 12"
+              keyboardType="numeric"
+              value={totalInstallments}
+              onChangeText={text => setTotalInstallments(text.replace(/[^0-9]/g, ''))}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Frequência da Parcela</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={installmentFrequency}
+                onValueChange={(itemValue: string) => setInstallmentFrequency(itemValue)}
+                style={styles.picker}
+                itemStyle={styles.pickerItem}
+              >
+                {INSTALLMENT_FREQUENCIES.map((freq) => (
+                  <Picker.Item key={freq} label={
+                    freq === 'monthly' ? 'Mensal' :
+                    freq === 'bimonthly' ? 'Bimestral' :
+                    freq === 'quarterly' ? 'Trimestral' :
+                    freq === 'semiannual' ? 'Semestral' :
+                    freq === 'yearly' ? 'Anual' : freq
+                  } value={freq} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+        </>
+      )}
+      {/* Salvar Botão */}
       <TouchableOpacity style={styles.saveButton} onPress={handleSaveTransaction}>
         <Text style={styles.saveButtonText}>Salvar Lançamento</Text>
       </TouchableOpacity>
