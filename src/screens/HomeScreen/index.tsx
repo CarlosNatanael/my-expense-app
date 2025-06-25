@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, Alert, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -8,24 +8,74 @@ import Header from '../../components/Header';
 import SummaryCards from '../../components/SummaryCards';
 import FilterTabs, { FilterType } from '../../components/FilterTabs';
 import TransactionListItem from '../../components/TransactionListItem';
-import { Transaction, TransactionType } from '../../types';
-// Importe as funções de dados do AsyncStorage
-import { getTransactionsFromAsyncStorage, populateWithMockDataToAsyncStorage } from '../../data/transactions';
-import { generateMonthlyTransactions } from '../../utils/transactionGenerators';
+import { Transaction } from '../../types';
+import { getTransactionsFromAsyncStorage, deleteTransactionFromAsyncStorage } from '../../data/transactions';
 import FloatingActionButton from '../../components/FloatingActionButton';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-interface HomeScreenProps {}
-
-const HomeScreen: React.FC<HomeScreenProps> = () => {
+const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1));
+  const [currentDate, setCurrentDate] = useState(new Date()); // Inicia com a data atual
   const [currentFilter, setCurrentFilter] = useState<FilterType>('all');
   const [displayedTransactions, setDisplayedTransactions] = useState<Transaction[]>([]);
-  const [allStoredTransactions, setAllStoredTransactions] = useState<Transaction[]>([]);
+  
+  // Função que carrega, filtra e exibe as transações
+  const loadAndFilterTransactions = useCallback(async () => {
+    const allTransactions = await getTransactionsFromAsyncStorage();
 
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    const transactionsForMonth = allTransactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      
+      // Para transações 'once' (única) e 'installment' (parcelada),
+      // a data já está correta, então apenas verificamos se pertence ao mês/ano atual.
+      if (t.frequency === 'once' || t.frequency === 'installment') {
+        return transactionDate.getFullYear() === year && transactionDate.getMonth() === month;
+      }
+      
+      // Para transações 'monthly' (recorrente)
+      if (t.frequency === 'monthly') {
+        const startDate = new Date(t.startDate || t.date);
+        // Verifica se a transação recorrente já começou
+        const hasStarted = startDate.getFullYear() < year || (startDate.getFullYear() === year && startDate.getMonth() <= month);
+        // (Opcional) Adicionar lógica de data final se houver
+        return hasStarted;
+      }
+      
+      return false;
+    }).map(t => {
+      // Se for recorrente, ajusta a data para o mês atual para exibição correta
+      if (t.frequency === 'monthly') {
+        const dateForCurrentMonth = new Date(t.date);
+        dateForCurrentMonth.setFullYear(year);
+        dateForCurrentMonth.setMonth(month);
+        return { ...t, date: dateForCurrentMonth.toISOString() };
+      }
+      return t;
+    });
+
+    // Aplica o filtro da aba ('Todos', 'Receitas', 'Despesas')
+    const filteredByTab = transactionsForMonth.filter(t => currentFilter === 'all' || t.type === currentFilter);
+    
+    // Ordena as transações por data
+    filteredByTab.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    setDisplayedTransactions(filteredByTab);
+  }, [currentDate, currentFilter]);
+
+
+  // useFocusEffect é chamado toda vez que a tela entra em foco
+  useFocusEffect(
+    useCallback(() => {
+      loadAndFilterTransactions();
+    }, [loadAndFilterTransactions])
+  );
+  
+  // Calcula os totais para os cards de resumo
   const calculateFinancialSummary = useCallback((trans: Transaction[]) => {
     let income = 0;
     let totalPaidExpenses = 0;
@@ -35,65 +85,37 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
       const amountValue = Math.abs(t.amount);
       if (t.type === 'income') {
         income += amountValue;
-      } else {
+      } else { // type === 'expense'
         if (t.status === 'paid') {
           totalPaidExpenses += amountValue;
-        } else {
+        } else { // status === 'pending'
           totalPendingExpenses += amountValue;
         }
       }
     });
 
-    const totalExpenses = totalPaidExpenses + totalPendingExpenses;
-    const balance = income - totalExpenses;
+    const balance = income - (totalPaidExpenses + totalPendingExpenses);
 
     return { income, totalPaidExpenses, totalPendingExpenses, balance };
   }, []);
 
   const { income: totalIncome, totalPaidExpenses, totalPendingExpenses, balance } = calculateFinancialSummary(displayedTransactions);
 
-  // loadAndGenerateTransactions vai voltar a usar AsyncStorage
-  const loadAndGenerateTransactions = useCallback(async () => { // REMOVER userId?: string de argumento
-
-    const loadedTransactions = await getTransactionsFromAsyncStorage(); // Nova função para AsyncStorage
-    
-    setAllStoredTransactions(loadedTransactions);
-    
-    const generated = generateMonthlyTransactions(loadedTransactions, currentDate);
-    const filtered = generated.filter(t => currentFilter === 'all' || t.type === currentFilter);
-    setDisplayedTransactions(filtered);
-
-  }, [currentDate, currentFilter]); // user NÃO É MAIS DEPENDÊNCIA
-
-  useFocusEffect(
-    useCallback(() => {
-      loadAndGenerateTransactions(); // Simplesmente chama, sem userId
-    }, [loadAndGenerateTransactions])
-  );
 
   const formatMonth = (date: Date) => {
     return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };
 
   const handlePreviousMonth = () => {
-    setCurrentDate(prevDate => {
-      const newDate = new Date(prevDate);
-      newDate.setMonth(newDate.getMonth() - 1);
-      return newDate;
-    });
+    setCurrentDate(prevDate => new Date(prevDate.getFullYear(), prevDate.getMonth() - 1, 1));
   };
 
   const handleNextMonth = () => {
-    setCurrentDate(prevDate => {
-      const newDate = new Date(prevDate);
-      newDate.setMonth(newDate.getMonth() + 1);
-      return newDate;
-    });
+    setCurrentDate(prevDate => new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 1));
   };
 
   const handleDateSelected = (newDate: Date) => {
-    const firstDayOfMonth = new Date(newDate.getFullYear(), newDate.getMonth(), 1);
-    setCurrentDate(firstDayOfMonth);
+    setCurrentDate(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
   };
 
 
@@ -102,23 +124,18 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
   };
 
   const handlePressTransactionItem = (transaction: Transaction) => {
-    // Não passa userId
     navigation.navigate('TransactionDetail', { transactionId: transaction.id });
   };
-
+  
   const handleAddTransaction = () => {
-    // Não precisa de login para adicionar, volta ao AsyncStorage
     navigation.navigate('AddTransaction');
   };
 
   const handleGoToWishlist = () => {
-    // Não precisa de login para Wishlist, volta ao AsyncStorage
     navigation.navigate('Wishlist');
   };
-
-  // Ícone de Conta volta a ser apenas um alerta ou placeholder
-  const handlePressAccountIcon = async () => {
-    // Não faz mais login Google aqui
+  
+  const handlePressAccountIcon = () => {
     Alert.alert('Conta', 'Funcionalidade de conta/login será implementada no futuro.');
   };
 
@@ -156,12 +173,15 @@ const HomeScreen: React.FC<HomeScreenProps> = () => {
         data={displayedTransactions}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TransactionListItem transaction={item} onPressItem={handlePressTransactionItem} />
+          <TransactionListItem 
+            transaction={item} 
+            onPressItem={handlePressTransactionItem} 
+          />
         )}
         style={styles.transactionsList}
         contentContainerStyle={styles.transactionsListContent}
         ListEmptyComponent={() => (
-          <Text style={styles.emptyListText}>Nenhum lançamento para este mês ou filtro.</Text>
+          <Text style={styles.emptyListText}>Nenhum lançamento para este mês.</Text>
         )}
       />
 

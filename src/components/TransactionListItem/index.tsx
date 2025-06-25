@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Transaction } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
-import { Transaction, TransactionType } from '../../types';
-import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
+import { formatAmountWithThousandsSeparator as formatCurrency } from '../../utils/currencyFormatter';
+import { FontAwesome5 , MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface TransactionListItemProps {
   transaction: Transaction;
-  onPressItem?: (transaction: Transaction) => void;
+  onPressItem: (transaction: Transaction) => void;
 }
 
 const categoryIcons: { [key: string]: keyof typeof Ionicons.glyphMap } = {
@@ -26,70 +27,80 @@ const categoryIcons: { [key: string]: keyof typeof Ionicons.glyphMap } = {
   'Outros': 'help-circle-outline',
 };
 
-const statusDisplay: { [key: string]: { icon: keyof typeof Ionicons.glyphMap, color: string } } = {
-  'paid': { icon: 'checkmark-circle', color: '#2ECC71' },
-  'pending': { icon: 'time-outline', color: '#E74C3C' },
-  'overdue': { icon: 'warning', color: '#FFD700' },
-};
-
-
 const TransactionListItem: React.FC<TransactionListItemProps> = ({ transaction, onPressItem }) => {
   const isExpense = transaction.type === 'expense';
-  const iconName = categoryIcons[transaction.category] || categoryIcons['Outros'];
-  
-  const isOverdue = React.useMemo(() => {
-    if (transaction.type === 'expense' && transaction.status === 'pending') {
-      const transactionDate = parseDateString(transaction.date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+  const iconName = categoryIcons[transaction.category] || categoryIcons['Outros']
 
-      return transactionDate.getTime() < today.getTime();
+const StatusIcon: React.FC<{ transaction: Transaction }> = ({ transaction }) => {
+    const isExpense = transaction.type === 'expense';
+    const isPending = transaction.status === 'pending';
+    // Remove a parte do horário da data para uma comparação precisa.
+    const transactionDate = new Date(transaction.date.split('T')[0]);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Zera o horário para comparar apenas o dia.
+    
+    const isOverdue = isPending && transactionDate < today;
+
+    if (isExpense) {
+        if (isOverdue) {
+            // Atrasado (Vermelho)
+            return <MaterialCommunityIcons name="alert-circle" size={24} color="#d9534f" />;
+        }
+        if (isPending) {
+            // Pendente (Laranja)
+            return <MaterialCommunityIcons name="clock-time-three" size={24} color="#f0ad4e" />;
+        }
+        // Pago (Verde)
+        return <MaterialCommunityIcons name="check-circle" size={24} color="#5cb85c" />;
     }
-    return false;
-  }, [transaction.type, transaction.status, transaction.date]);
+    
+    // Receita (Verde)
+    return <MaterialCommunityIcons name="check-circle" size={24} color="#5cb85c" />;
+};
 
-  let currentStatusDisplay;
-  if (isOverdue) {
-    currentStatusDisplay = statusDisplay['overdue'];
-  } else {
-    currentStatusDisplay = statusDisplay[transaction.status] || statusDisplay['paid'];
-  }
-
-  const formattedAmount = `${transaction.type === 'expense' ? '-' : '+'} R$ ${formatAmountWithThousandsSeparator(transaction.amount)}`;
-  const amountColor = isExpense ? '#E74C3C' : '#2ECC71';
-
-  // Verifica se é uma transação parcelada para exibir o número da parcela
-  const isInstallment = transaction.frequency === 'installment' && 
-                        transaction.currentInstallment !== undefined && 
-                        transaction.totalInstallments !== undefined;
+  // **Mantém a correção da data**
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+  };
+  const formattedDate = formatDate(transaction.date);
 
   return (
-    <TouchableOpacity style={styles.container} onPress={() => onPressItem && onPressItem(transaction)}>
-      {/* Icone de Status */}
-      <Ionicons name={currentStatusDisplay.icon} size={22} color={currentStatusDisplay.color} style={styles.statusIcon} />
+    <TouchableOpacity style={styles.container} onPress={() => onPressItem(transaction)}>
+      {/* Ícone de Status (Estilo Original) */}
+      <View style={styles.iconContainer}>
+        <StatusIcon transaction={transaction} />
+      </View>
 
       {/* Conteúdo Principal */}
       <View style={styles.detailsContainer}>
-        <View style={styles.descriptionRow}>
-          <Text style={styles.descriptionText}>{transaction.description}</Text>
-          {transaction.frequency === 'monthly' && ( // Ícone de recorrência
-            <Ionicons name="repeat-outline" size={16} color="#666" style={styles.recurringIcon} />
-          )}
+        <View style={styles.dateAndIcons}>
+           <Text style={styles.descriptionText}>{transaction.description}</Text>
+            {/* Ícone para transação recorrente */}
+           {transaction.frequency === 'monthly' && (
+              <MaterialCommunityIcons name="calendar-refresh-outline" size={16} color="#888" style={styles.extraIcon}/>
+           )}
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.dateText}>{transaction.date}</Text>
+          <Text style={styles.date}>{formattedDate}</Text>
           <Ionicons name={iconName} size={16} color="#666" style={styles.categoryIcon} />
         </View>
       </View>
 
-      {/* Valor e Número da Parcela (dentro do amountContainer) */}
+      {/* Valor e Informação da Parcela */}
       <View style={styles.amountContainer}>
-        <Text style={[styles.amountText, { color: amountColor }]}>
-          {formattedAmount}
+        <Text style={[styles.amount, { color: isExpense ? '#d9534f' : '#5cb85c' }]}>
+          {isExpense ? '- ' : '+ '}
+          {formatCurrency(transaction.amount)}
         </Text>
-        {isInstallment && ( // Renderiza o número da parcela apenas se for parcelada
-          <Text style={styles.installmentText}>
-            {transaction.currentInstallment}/{transaction.totalInstallments}
+        {transaction.frequency === 'installment' && (
+          <Text style={styles.installmentInfo}>
+            {`${transaction.currentInstallment}/${transaction.totalInstallments}`}
           </Text>
         )}
       </View>
@@ -98,26 +109,69 @@ const TransactionListItem: React.FC<TransactionListItemProps> = ({ transaction, 
 };
 
 const styles = StyleSheet.create({
-  container: {
+    container: {
+        flexDirection: 'row',
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        marginHorizontal: 15,
+        marginBottom: 10,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        alignItems: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
+    },
+    iconContainer: {
+        marginRight: 15,
+        width: 24, // Garante alinhamento
+        alignItems: 'center',
+    },
+    detailsContainer: {
+        flex: 1,
+    },
+    description: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#333',
+    },
+    dateAndIcons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    date: {
+        fontSize: 14,
+        color: '#888',
+    },
+    extraIcon: {
+        marginLeft: 8,
+    },
+    amountContainer: {
+        alignItems: 'flex-end',
+    },
+    amount: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    installmentInfo: {
+        fontSize: 12,
+        color: '#888',
+        marginTop: 4,
+    },
+  categoryIcon: {
+  },
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    marginHorizontal: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+    marginTop: 4,
   },
-  statusIcon: {
-    marginRight: 10,
-  },
-  detailsContainer: {
-    flex: 1,
-    marginRight: 10,
+  dateText: {
+    fontSize: 14,
+    color: '#888',
+    marginRight: 9,
   },
   descriptionRow: {
     flexDirection: 'row',
@@ -131,36 +185,6 @@ const styles = StyleSheet.create({
   recurringIcon: {
     marginLeft: 5,
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  dateText: {
-    fontSize: 13,
-    color: '#888',
-    marginRight: 8,
-  },
-  categoryIcon: {},
-  amountContainer: {
-    // AQUI ESTÁ A MUDANÇA PRINCIPAL: flexDirection para 'column' e alinhamento
-    flexDirection: 'column',
-    alignItems: 'flex-end', // Alinha o texto à direita
-    justifyContent: 'center', // Centraliza verticalmente se houver espaço
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginRight: 5, // Mantém espaço se tiver o chevron
-    textAlign: 'right', // Garante alinhamento à direita
-  },
-  installmentText: { // <-- AJUSTADO AQUI
-    fontSize: 14, // Aumenta o tamanho da fonte (era 12)
-    fontWeight: 'bold', // Deixa em negrito
-    color: '#888',
-    marginTop: 2,
-    textAlign: 'right',
-  },
   chevronIcon: { // Estilo para o ícone de seta para não afetar o alinhamento
     position: 'absolute',
     right: 0,
@@ -170,8 +194,3 @@ const styles = StyleSheet.create({
 });
 
 export default TransactionListItem;
-
-export function parseDateString(dateString: string): Date {
-  // Adapte esta função conforme sua implementação real
-  return new Date(dateString);
-}
