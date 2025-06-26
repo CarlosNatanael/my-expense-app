@@ -148,7 +148,6 @@ const HomeScreen: React.FC = () => {
         onPressNextMonth={handleNextMonth}
         onDateChange={handleDateSelected}
         selectedDate={currentDate}
-        currentFilter={currentFilter}
         onPressAccount={handlePressAccountIcon}
       />
 

@@ -10,6 +10,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import AddTransactionScreen from './src/screens/AddTransactionScreen';
 import TransactionDetailScreen from './src/screens/TransactionDetailScreen';
 import WishlistScreen from './src/screens/WishlistScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import Toast from 'react-native-toast-message'; 
 
 const Stack = createNativeStackNavigator();
@@ -19,6 +20,7 @@ export type RootStackParamList = {
   AddTransaction: { transactionId?: string } | undefined;
   TransactionDetail: { transactionId: string };
   Wishlist: undefined;
+  Settings: undefined;
 };
 
 type AddTransactionScreenProps = NativeStackScreenProps<RootStackParamList, 'AddTransaction'>;
@@ -55,11 +57,11 @@ export default function App() {
             options={{ title: 'Minha Lista de Desejos' }}
           />
           {/* Adicione rota para configurações se criar tela dedicada */}
-          {/* <Stack.Screen
+          <Stack.Screen 
             name="Settings"
             component={SettingsScreen}
-            options={{ title: 'Configurações' }}
-          /> */}
+            options={{ title: 'Backup e Restauração' }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast />

@@ -1,5 +1,3 @@
-// src/data/wishlist.ts
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WishlistItem } from '../types';
 import { Alert } from 'react-native';
