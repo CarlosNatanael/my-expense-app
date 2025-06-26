@@ -13,17 +13,16 @@ import WishlistScreen from './src/screens/WishlistScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import Toast from 'react-native-toast-message'; 
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export type RootStackParamList = {
   Home: undefined;
-  AddTransaction: { transactionId?: string } | undefined;
-  TransactionDetail: { transactionId: string };
+  AddTransaction: { transactionId?: string };
+  // **CORREÇÃO**: Adicionar instanceDate para saber qual mês estamos vendo
+  TransactionDetail: { transactionId: string; instanceDate?: string };
   Wishlist: undefined;
   Settings: undefined;
 };
-
-type AddTransactionScreenProps = NativeStackScreenProps<RootStackParamList, 'AddTransaction'>;
 
 export default function App() {
   return (
@@ -56,7 +55,6 @@ export default function App() {
             component={WishlistScreen}
             options={{ title: 'Minha Lista de Desejos' }}
           />
-          {/* Adicione rota para configurações se criar tela dedicada */}
           <Stack.Screen 
             name="Settings"
             component={SettingsScreen}
@@ -72,6 +70,6 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#f8f8f8', // Cor de fundo consistente
   },
 });

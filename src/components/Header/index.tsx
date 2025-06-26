@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { formatAmountWithThousandsSeparator as formatCurrency } from '../../utils/currencyFormatter';
+import { formatCurrency } from '../../utils/currencyFormatter';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 type HeaderNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
@@ -16,7 +16,7 @@ interface HeaderProps {
   onPressNextMonth: () => void;
   onDateChange: (date: Date) => void;
   selectedDate: Date;
-  onPressAccount: () => void; // Mantemos este, mesmo que seja um alerta por enquanto
+  onPressAccount: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -28,7 +28,7 @@ const Header: React.FC<HeaderProps> = ({
   selectedDate,
   onPressAccount,
 }) => {
-  const navigation = useNavigation<HeaderNavigationProp>(); // Hook de navegação
+  const navigation = useNavigation<HeaderNavigationProp>();
   const [showDatePicker, setShowDatePicker] = React.useState(false);
 
   const handleDateChange = (event: any, date?: Date) => {

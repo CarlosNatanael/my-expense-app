@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Transaction } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
-import { formatAmountWithThousandsSeparator as formatCurrency } from '../../utils/currencyFormatter';
+import { formatCurrency } from '../../utils/currencyFormatter';
 import { FontAwesome5 , MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface TransactionListItemProps {

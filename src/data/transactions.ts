@@ -28,10 +28,7 @@ export const saveTransactionsToAsyncStorage = async (transactions: Transaction[]
   }
 };
 
-/**
- * Adiciona uma nova transação ou um array de transações ao AsyncStorage.
- * Isso é usado para criar tanto lançamentos únicos quanto múltiplas parcelas de uma vez.
- */
+/*Adiciona uma nova transação ou um array de transações ao AsyncStorage.*/
 export const addTransactionToAsyncStorage = async (newData: Transaction | Transaction[]): Promise<void> => {
   const currentTransactions = await getTransactionsFromAsyncStorage();
   const newTransactions = Array.isArray(newData) ? newData : [newData];
@@ -49,10 +46,7 @@ export const updateTransactionInAsyncStorage = async (updatedTransaction: Transa
   await saveTransactionsToAsyncStorage(updatedTransactions);
 };
 
-/**
- * Deleta uma transação. Se for uma parcela, pergunta se o usuário quer
- * deletar apenas a parcela ou a compra inteira (todas as parcelas do grupo).
- */
+/* Deleta uma transação. Se for uma parcela, pergunta se o usuário quer*/
 export const deleteTransactionFromAsyncStorage = async (transactionToDelete: Transaction): Promise<void> => {
     const { id, installmentGroupId } = transactionToDelete;
     const currentTransactions = await getTransactionsFromAsyncStorage();
@@ -92,16 +86,36 @@ export const deleteTransactionFromAsyncStorage = async (transactionToDelete: Tra
 };
 
 // Função para marcar uma despesa como paga
-export const markAsPaid = async (transactionId: string): Promise<void> => {
+export const markAsPaid = async (transaction: Transaction): Promise<void> => {
   try {
     const transactions = await getTransactionsFromAsyncStorage();
     const updatedTransactions = transactions.map(t => {
-      if (t.id === transactionId) {
+      // Encontra a transação pelo ID original
+      if (t.id === transaction.id) {
+        // Se for recorrente ('monthly')
+        if (t.frequency === 'monthly') {
+          const paymentDate = new Date(transaction.date);
+          // Formata a data para 'AAAA-MM' para usar como chave
+          const monthKey = `${paymentDate.getFullYear()}-${(paymentDate.getMonth() + 1).toString().padStart(2, '0')}`;
+          
+          // Garante que o array paidOccurrences exista
+          const paidOccurrences = t.paidOccurrences || [];
+
+          // Se o mês ainda não foi pago, adiciona
+          if (!paidOccurrences.includes(monthKey)) {
+            paidOccurrences.push(monthKey);
+          }
+          
+          // Retorna a transação mãe com o histórico de pagamento atualizado
+          return { ...t, paidOccurrences };
+        }
+        
+        // Para transações 'once' ou 'installment', apenas muda o status
         return { ...t, status: 'paid' as 'paid' };
       }
       return t;
     });
-    // Corrigido para usar a função save padronizada
+    
     await saveTransactionsToAsyncStorage(updatedTransactions);
   } catch (error) {
     console.error('Erro ao marcar como pago:', error);

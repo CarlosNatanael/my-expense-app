@@ -10,7 +10,7 @@ import { WishlistItem, WishlistItemStatus } from '../../types';
 import { getWishlistItemsFromAsyncStorage, addWishlistItemToAsyncStorage, updateWishlistItemInAsyncStorage, deleteWishlistItemFromAsyncStorage, populateWithMockWishlistDataToAsyncStorage } from '../../data/wishlist'; 
 import { v4 as uuidv4 } from 'uuid';
 import { Ionicons } from '@expo/vector-icons';
-import { formatAmountWithThousandsSeparator } from '../../utils/currencyFormatter';
+import { formatCurrency } from '../../utils/currencyFormatter';
 
 // Dados mockados para a lista de desejos
 const MOCKED_WISHLIST_ITEMS: WishlistItem[] = [
@@ -129,7 +129,7 @@ const WishlistScreen: React.FC = () => {
     <View style={styles.itemContainer}>
       <View style={styles.itemDetails}>
         <Text style={[styles.itemName, item.status === 'bought' && styles.itemBought]}>{item.name}</Text>
-        <Text style={styles.itemPrice}>R$ {formatAmountWithThousandsSeparator(item.estimatedPrice)}</Text>
+        <Text style={styles.itemPrice}>R$ {formatCurrency(item.estimatedPrice)}</Text>
         {item.desiredDate && <Text style={styles.itemDate}>Data Desejada: {item.desiredDate}</Text>}
       </View>
       <View style={styles.itemActions}>

@@ -13,3 +13,19 @@ export const formatAmountWithThousandsSeparator = (amount: number): string => {
     maximumFractionDigits: 2, // Garante no máximo duas casas decimais
   }).format(amount);
 };
+
+export const formatCurrency = (value: number): string => {
+  // Garante que, se o valor for inválido (NaN), ele seja tratado como 0.
+  if (isNaN(value)) {
+    value = 0;
+  }
+
+  // Usa a API de internacionalização para formatar o número corretamente.
+  const formatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+  });
+
+  return formatter.format(value);
+};
