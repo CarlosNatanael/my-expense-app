@@ -1,52 +1,30 @@
-// src/screens/WishlistScreen/index.tsx
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput } from 'react-native';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../../App';
-import { WishlistItem, WishlistItemStatus } from '../../types';
-// ALTERE AQUI: Use as novas funções do AsyncStorage
-import { getWishlistItemsFromAsyncStorage, addWishlistItemToAsyncStorage, updateWishlistItemInAsyncStorage, deleteWishlistItemFromAsyncStorage, populateWithMockWishlistDataToAsyncStorage } from '../../data/wishlist'; 
+import React, { useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Modal,
+  TextInput, Alert, Platform
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { v4 as uuidv4 } from 'uuid';
-import { Ionicons } from '@expo/vector-icons';
+import { WishlistItem } from '../../types';
+import { getWishlistItemsFromAsyncStorage, saveWishlistItemsToAsyncStorage } from '../../data/wishlist';
 import { formatCurrency } from '../../utils/currencyFormatter';
-
-// Dados mockados para a lista de desejos
-const MOCKED_WISHLIST_ITEMS: WishlistItem[] = [
-  { id: uuidv4(), name: 'Novo Celular', estimatedPrice: 1500.00, desiredDate: '30/06/2025', status: 'pending', creationDate: '01/06/2025' },
-  { id: uuidv4(), name: 'Tênis de Corrida', estimatedPrice: 400.00, desiredDate: '15/07/2025', status: 'pending', creationDate: '05/06/2025' },
-  { id: uuidv4(), name: 'Fone de Ouvido Bluetooth', estimatedPrice: 250.00, desiredDate: '10/06/2025', status: 'pending', creationDate: '08/06/2025' },
-  { id: uuidv4(), name: 'Livro "A Arte de Lidar com o Dinheiro"', estimatedPrice: 80.00, desiredDate: '20/05/2025', status: 'bought', creationDate: '15/05/2025' },
-];
-
-
-type WishlistScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Wishlist'>;
-type WishlistScreenRouteProp = RouteProp<RootStackParamList, 'Wishlist'>;
-
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import FloatingActionButton from '../../components/FloatingActionButton';
 
 const WishlistScreen: React.FC = () => {
-  const navigation = useNavigation<WishlistScreenNavigationProp>();
-  const route = useRoute<WishlistScreenRouteProp>();
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemPrice, setNewItemPrice] = useState('');
+  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [currentItem, setCurrentItem] = useState<WishlistItem | null>(null);
+  const [name, setName] = useState('');
+  const [estimatedPrice, setEstimatedPrice] = useState('');
+  
+  const [desiredDate, setDesiredDate] = useState<Date | undefined>(undefined);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const loadWishlist = useCallback(async () => {
-    let items = await getWishlistItemsFromAsyncStorage(); 
-    
-    if (items.length === 0) {
-      Alert.alert(
-        "Lista de Desejos Vazia",
-        "Adicionar itens de exemplo à sua lista de desejos?",
-        [{ text: "Não", style: "cancel" }, { text: "Sim", onPress: async () => {
-          await populateWithMockWishlistDataToAsyncStorage(MOCKED_WISHLIST_ITEMS); 
-          items = await getWishlistItemsFromAsyncStorage();
-          setWishlistItems(items);
-        }}]
-      );
-    }
-    setWishlistItems(items);
+    const items = await getWishlistItemsFromAsyncStorage();
+    setWishlist(items);
   }, []);
 
   useFocusEffect(
@@ -55,91 +33,121 @@ const WishlistScreen: React.FC = () => {
     }, [loadWishlist])
   );
 
-  const handleAddItem = async () => {
-    if (!newItemName.trim() || isNaN(parseFloat(newItemPrice))) {
-      Alert.alert('Erro', 'Preencha o nome do item e um preço estimado válido.');
+  const openModalToAdd = () => {
+    setCurrentItem(null);
+    setName('');
+    setEstimatedPrice('');
+    setDesiredDate(undefined);
+    setModalVisible(true);
+  };
+
+  const openModalToEdit = (item: WishlistItem) => {
+    setCurrentItem(item);
+    setName(item.name);
+    setEstimatedPrice(item.estimatedPrice.toString());
+    setDesiredDate(item.desiredDate ? new Date(item.desiredDate) : undefined);
+    setModalVisible(true);
+  };
+
+  const handleSaveItem = async () => {
+    const price = parseFloat(estimatedPrice.replace(',', '.'));
+    if (!name || isNaN(price) || price <= 0) {
+      Alert.alert('Erro', 'Por favor, preencha o nome e um preço válido.');
       return;
     }
 
-    const today = new Date().toLocaleDateString('pt-BR');
-    const newItem: WishlistItem = {
-      id: uuidv4(),
-      name: newItemName.trim(),
-      estimatedPrice: parseFloat(newItemPrice.replace(',', '.')),
-      status: 'pending',
-      creationDate: today,
-    };
+    let updatedList: WishlistItem[];
 
-    try {
-      const updatedList = await addWishlistItemToAsyncStorage(newItem); 
-      if (updatedList) { 
-        setWishlistItems(updatedList);
-        setNewItemName('');
-        setNewItemPrice('');
-      }
-    } catch (error) {
-      console.error('Erro ao adicionar item à lista de desejos:', error);
-      Alert.alert('Erro', 'Não foi possível adicionar o item.');
+    if (currentItem) {
+      updatedList = wishlist.map(item =>
+        item.id === currentItem.id
+          ? {
+              ...item,
+              name,
+              estimatedPrice: price,
+              desiredDate: desiredDate?.toISOString().split('T')[0],
+              status: item.status as WishlistItem['status'],
+            }
+          : item
+      );
+    } else {
+      const newItem: WishlistItem = {
+        id: uuidv4(),
+        name,
+        estimatedPrice: price,
+        status: 'pending' as WishlistItem['status'],
+        creationDate: new Date().toISOString(),
+        desiredDate: desiredDate?.toISOString().split('T')[0],
+      };
+      updatedList = [...wishlist, newItem];
     }
+
+    await saveWishlistItemsToAsyncStorage(updatedList);
+    setWishlist(updatedList);
+    setModalVisible(false);
   };
 
-  const handleMarkAsBought = async (item: WishlistItem) => {
-    Alert.alert(
-      'Marcar como Comprado?',
-      `Marcar "${item.name}" como comprado?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Sim', onPress: async () => {
-          try {
-            const updatedItem = { ...item, status: 'bought' as WishlistItemStatus };
-            const updatedList = await updateWishlistItemInAsyncStorage(updatedItem);
-            setWishlistItems(updatedList);
-            Alert.alert('Sucesso', `"${item.name}" marcado como comprado!`);
-          } catch (error) {
-            console.error('Erro ao marcar item como comprado:', error);
-            Alert.alert('Erro', 'Não foi possível marcar o item.');
-          }
-        }},
-      ]
-    );
+  const handleDeleteItem = async (id: string) => {
+    Alert.alert('Confirmar Exclusão', 'Tem certeza que deseja apagar este item?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Apagar',
+        style: 'destructive',
+        onPress: async () => {
+          const updatedList = wishlist.filter(item => item.id !== id);
+          await saveWishlistItemsToAsyncStorage(updatedList);
+          setWishlist(updatedList);
+        },
+      },
+    ]);
   };
 
-  const handleDeleteItem = async (itemId: string) => {
-    Alert.alert(
-      'Excluir Item',
-      'Tem certeza que deseja excluir este item?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', onPress: async () => {
-          try {
-            await deleteWishlistItemFromAsyncStorage(itemId); 
-            const updatedList = await getWishlistItemsFromAsyncStorage(); 
-            setWishlistItems(updatedList);
-            Alert.alert('Sucesso', 'Item excluído.');
-          } catch (error) {
-            console.error('Erro ao excluir item:', error);
-            Alert.alert('Erro', 'Não foi possível excluir o item.');
-          }
-        }},
-      ]
+  const handleToggleStatus = async (item: WishlistItem) => {
+    const updatedList = wishlist.map(i =>
+      i.id === item.id
+        ? { ...i, status: (i.status === 'pending' ? 'bought' : 'pending') as WishlistItem['status'] }
+        : i
     );
+    await saveWishlistItemsToAsyncStorage(updatedList);
+    setWishlist(updatedList);
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+        setDesiredDate(selectedDate);
+    }
   };
 
   const renderItem = ({ item }: { item: WishlistItem }) => (
     <View style={styles.itemContainer}>
+      <TouchableOpacity onPress={() => handleToggleStatus(item)} style={styles.statusIcon}>
+        <MaterialCommunityIcons
+          name={item.status === 'bought' ? 'check-circle' : 'circle-outline'}
+          size={26}
+          color={item.status === 'bought' ? '#28a745' : '#888'}
+        />
+      </TouchableOpacity>
       <View style={styles.itemDetails}>
-        <Text style={[styles.itemName, item.status === 'bought' && styles.itemBought]}>{item.name}</Text>
-        <Text style={styles.itemPrice}>R$ {formatCurrency(item.estimatedPrice)}</Text>
-        {item.desiredDate && <Text style={styles.itemDate}>Data Desejada: {item.desiredDate}</Text>}
+        <Text style={[styles.itemName, item.status === 'bought' && styles.itemNameBought]}>
+          {item.name}
+        </Text>
+        <Text style={styles.itemPrice}>{formatCurrency(item.estimatedPrice)}</Text>
+        {item.desiredDate && (
+            <View style={styles.dateContainer}>
+                <MaterialCommunityIcons name="calendar-clock" size={14} color="#888" />
+                <Text style={styles.dateText}>
+                    Desejado para: {new Date(item.desiredDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                </Text>
+            </View>
+        )}
       </View>
       <View style={styles.itemActions}>
-        {item.status === 'pending' && (
-          <TouchableOpacity onPress={() => handleMarkAsBought(item)} style={styles.actionButton}>
-            <Ionicons name="checkmark-circle-outline" size={24} color="#2ECC71" />
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity onPress={() => handleDeleteItem(item.id)} style={styles.actionButton}>
-          <Ionicons name="trash-outline" size={24} color="#E74C3C" />
+        <TouchableOpacity onPress={() => openModalToEdit(item)}>
+          <MaterialCommunityIcons name="pencil-outline" size={24} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => handleDeleteItem(item.id)} style={{ marginLeft: 15 }}>
+          <MaterialCommunityIcons name="trash-can-outline" size={24} color="#d9534f" />
         </TouchableOpacity>
       </View>
     </View>
@@ -147,142 +155,134 @@ const WishlistScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Minha Lista de Desejos</Text>
-
-      <View style={styles.addForm}>
-        <TextInput
-          style={styles.input}
-          placeholder="Nome do Item"
-          value={newItemName}
-          onChangeText={setNewItemName}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Preço Estimado"
-          keyboardType="numeric"
-          value={newItemPrice}
-          onChangeText={text => setNewItemPrice(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
-        />
-        <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
-          <Text style={styles.addButtonText}>Adicionar à Lista</Text>
-        </TouchableOpacity>
-      </View>
-
       <FlatList
-        data={wishlistItems}
-        keyExtractor={(item) => item.id}
+        data={wishlist}
         renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.emptyListText}>Sua lista de desejos está vazia!</Text>}
-        style={styles.list}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>Sua lista de desejos está vazia. Toque no '+' para adicionar um item.</Text>
+        }
       />
+      <FloatingActionButton onPress={openModalToAdd} />
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{currentItem ? 'Editar Item' : 'Novo Desejo'}</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nome do item (ex: Tênis novo)"
+              value={name}
+              onChangeText={setName}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Preço estimado (ex: 299,90)"
+              keyboardType="numeric"
+              value={estimatedPrice}
+              onChangeText={setEstimatedPrice}
+            />
+            <Text style={styles.modalLabel}>Data Desejada (Opcional)</Text>
+            <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.datePickerButton}>
+                <Text style={styles.datePickerText}>
+                    {desiredDate ? desiredDate.toLocaleDateString('pt-BR') : 'Selecione uma data'}
+                </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+                <DateTimePicker
+                    value={desiredDate || new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={onDateChange}
+                />
+            )}
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={() => setModalVisible(false)}>
+                <Text style={styles.buttonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSaveItem}>
+                <Text style={styles.buttonText}>Salvar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f8f8',
-    padding: 20,
-    paddingTop: 10,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  addForm: {
-    marginBottom: 20,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  input: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    fontSize: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  addButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  list: {
-    flex: 1,
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-  },
-  itemDetails: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  itemBought: {
-    textDecorationLine: 'line-through',
-    color: '#888',
-  },
-  itemPrice: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 5,
-  },
-  itemDate: {
-    fontSize: 13,
-    color: '#999',
-    marginTop: 3,
-  },
-  itemActions: {
-    flexDirection: 'row',
-    marginLeft: 10,
-  },
-  actionButton: {
-    marginLeft: 10,
-    padding: 5,
-  },
-  emptyListText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: '#888',
-  },
+    container: { flex: 1, backgroundColor: '#f8f8f8' },
+    listContent: { padding: 15, paddingBottom: 100 },
+    emptyText: { textAlign: 'center', marginTop: 50, fontSize: 16, color: '#888' },
+    itemContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 15,
+        marginBottom: 15,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+    },
+    statusIcon: { marginRight: 15 },
+    itemDetails: { flex: 1 },
+    itemName: { fontSize: 18, fontWeight: '500', color: '#333' },
+    itemNameBought: { textDecorationLine: 'line-through', color: '#aaa' },
+    itemPrice: { fontSize: 16, color: '#007AFF', fontWeight: 'bold', marginTop: 4 },
+    dateContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+    dateText: { marginLeft: 6, fontSize: 13, color: '#888' },
+    itemActions: { flexDirection: 'row' },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    modalContent: {
+        width: '90%',
+        backgroundColor: '#fff',
+        borderRadius: 15,
+        padding: 20,
+        elevation: 10,
+    },
+    modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+    input: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 15,
+        fontSize: 16,
+    },
+    modalLabel: { fontSize: 16, color: '#555', marginBottom: 8, fontWeight: '500' },
+    datePickerButton: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 20,
+        alignItems: 'center',
+    },
+    datePickerText: { fontSize: 16, color: '#333' },
+    modalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+    button: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    cancelButton: { backgroundColor: '#aaa', marginRight: 10 },
+    saveButton: { backgroundColor: '#007AFF', marginLeft: 10 },
+    buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
 
 export default WishlistScreen;

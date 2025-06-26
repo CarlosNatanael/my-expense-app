@@ -36,31 +36,24 @@ const HomeScreen: React.FC = () => {
         }
         return false;
     }).map(t => {
-        // **INÍCIO DA CORREÇÃO**
-        // Se for recorrente, cria uma "instância" para o mês atual
         if (t.frequency === 'monthly') {
             const dateForCurrentMonth = new Date(t.date);
             dateForCurrentMonth.setFullYear(year);
             dateForCurrentMonth.setMonth(month);
-
-            // Formata a chave do mês para 'AAAA-MM'
             const monthKey = `${year}-${(month + 1).toString().padStart(2, '0')}`;
-            // Verifica se o mês atual está no array de meses pagos
             const isPaid = t.paidOccurrences?.includes(monthKey);
-            
             return { 
                 ...t, 
                 date: dateForCurrentMonth.toISOString(),
-                // Define o status da instância com base no histórico
                 status: (isPaid ? 'paid' : 'pending') as Transaction['status']
             };
         }
-        // **FIM DA CORREÇÃO**
         return t;
     });
     
     const filteredByTab = transactionsForMonth.filter(t => currentFilter === 'all' || t.type === currentFilter);
-    filteredByTab.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Ordena as transações por data, da mais antiga para a mais nova.
+    filteredByTab.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     setDisplayedTransactions(filteredByTab);
   }, [currentDate, currentFilter]);
   
