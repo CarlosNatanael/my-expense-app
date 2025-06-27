@@ -19,15 +19,24 @@
     "@react-navigation/native": "^7.1.14",
     "@react-navigation/native-stack": "^7.3.14",
     "@react-navigation/stack": "^7.3.3",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.0",
     "expo": "~53.0.11",
     "expo-auth-session": "~6.2.0",
     "expo-constants": "~17.1.6",
     "expo-dev-client": "~5.2.0",
+    "expo-document-picker": "~13.1.6",
+    "expo-file-system": "~18.1.10",
     "expo-notifications": "~0.31.3",
     "expo-random": "^14.0.1",
+    "expo-sharing": "~13.1.5",
     "expo-status-bar": "~2.2.3",
     "expo-web-browser": "~14.2.0",
+    "express": "^5.1.0",
     "firebase": "^11.9.1",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.14.1",
     "react": "19.0.0",
     "react-native": "0.79.4",
     "react-native-gesture-handler": "~2.24.0",
@@ -35,9 +44,7 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "^4.11.1",
     "react-native-toast-message": "^2.3.0",
-    "expo-file-system": "~18.1.10",
-    "expo-sharing": "~13.1.5",
-    "expo-document-picker": "~13.1.6"
+    "sequelize": "^6.37.7"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -48,5 +55,16 @@
     "expo-module-scripts": "^4.1.7",
     "typescript": "~5.8.3"
   },
-  "private": true
+  "private": true,
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CarlosNatanael/MinhaDispesas.git"
+  },
+  "keywords": [],
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/CarlosNatanael/MinhaDispesas/issues"
+  },
+  "homepage": "https://github.com/CarlosNatanael/MinhaDispesas#readme"
 }
