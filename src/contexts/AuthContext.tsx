@@ -18,7 +18,7 @@ interface AuthContextData {
   signOut: () => void;
 }
 
-// Cria o Contexto com um valor padrão
+// Cria o Contexto
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 // Cria o Provedor do Contexto
@@ -27,48 +27,54 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Efeito para carregar o usuário salvo no AsyncStorage ao iniciar o app
   useEffect(() => {
     async function loadStoragedData() {
-      const storagedUser = await AsyncStorage.getItem('@MinhasDispesas:user');
-      const storagedToken = await AsyncStorage.getItem('@MinhasDispesas:token');
+      try {
+        const storagedUser = await AsyncStorage.getItem('@MinhasDispesas:user');
+        const storagedToken = await AsyncStorage.getItem('@MinhasDispesas:token');
 
-      if (storagedUser && storagedToken) {
-        setUser(JSON.parse(storagedUser));
-        setToken(storagedToken);
+        if (storagedUser && storagedToken) {
+          setUser(JSON.parse(storagedUser));
+          setToken(storagedToken);
+        }
+      } catch (error) {
+        console.error("Falha ao carregar dados do armazenamento:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
     loadStoragedData();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const response = await apiFetch('/api/auth/login', {
+    const response = await apiFetch('/api/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-
-    setUser(response.user);
-    setToken(response.token);
-
-    // Salva os dados no AsyncStorage para manter o usuário logado
-    await AsyncStorage.setItem('@MinhasDispesas:user', JSON.stringify(response.user));
-    await AsyncStorage.setItem('@MinhasDispesas:token', response.token);
+    const userData = response.usuario;
+    const tokenData = response.token;
+    setUser(userData);
+    setToken(tokenData);
+    await AsyncStorage.setItem('@MinhasDispesas:user', JSON.stringify(userData));
+    await AsyncStorage.setItem('@MinhasDispesas:token', tokenData);
   };
 
-  const signUp = async (fullName: string, email: string, password: string): Promise<void> => {
-    await apiFetch('/api/auth/register', {
+  const signUp = async (fullName: string, email: string, password: string) => {
+    await apiFetch('/api/register', {
         method: 'POST',
-        body: JSON.stringify({ fullName, email, password }),
+        body: JSON.stringify({ nome: fullName, email, senha: password }),
     });
-    // Após o cadastro, o usuário pode fazer o login
   };
 
   const signOut = async () => {
-    // Limpa os dados do estado e do AsyncStorage
-    await AsyncStorage.clear();
-    setUser(null);
-    setToken(null);
+    try {
+      await AsyncStorage.removeItem('@MinhasDispesas:user');
+      await AsyncStorage.removeItem('@MinhasDispesas:token');
+      setUser(null);
+      setToken(null);
+    } catch (error) {
+        console.error("Erro ao fazer logout:", error);
+    }
   };
 
   return (

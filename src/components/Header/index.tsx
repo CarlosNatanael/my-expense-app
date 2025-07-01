@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { formatCurrency } from '../../utils/currencyFormatter';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useAuth } from '../../contexts/AuthContext';
 
 type HeaderNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -16,7 +17,6 @@ interface HeaderProps {
   onPressNextMonth: () => void;
   onDateChange: (date: Date) => void;
   selectedDate: Date;
-  onPressAccount: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -26,9 +26,9 @@ const Header: React.FC<HeaderProps> = ({
   onPressNextMonth,
   onDateChange,
   selectedDate,
-  onPressAccount,
 }) => {
   const navigation = useNavigation<HeaderNavigationProp>();
+  const { user, signOut } = useAuth();
   const [showDatePicker, setShowDatePicker] = React.useState(false);
 
   const handleDateChange = (event: any, date?: Date) => {
@@ -38,14 +38,32 @@ const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const handlePressAccount = () => {
+    Alert.alert(
+      `Olá, ${user?.fullName || 'Usuário'}!`, // Mostra o nome do usuário
+      'O que você gostaria de fazer?',
+      [
+        {
+          text: 'Sair',
+          onPress: () => signOut(), // Chama a função de logout
+          style: 'destructive',
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.header}>
       <View style={styles.topRow}>
-        <TouchableOpacity onPress={onPressAccount} style={styles.iconButton}>
+        {/* O botão agora chama a nova função */}
+        <TouchableOpacity onPress={handlePressAccount} style={styles.iconButton}>
           <MaterialCommunityIcons name="account-circle-outline" size={28} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.balanceTitle}>Saldo do Mês</Text>
-        {/* BOTÃO DE CONFIGURAÇÕES (NOVO) */}
         <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconButton}>
           <MaterialCommunityIcons name="cog-outline" size={26} color="#fff" />
         </TouchableOpacity>

@@ -2,23 +2,17 @@ import 'react-native-get-random-values';
 import 'react-native-gesture-handler';
 
 import React from 'react';
-import { StyleSheet, SafeAreaView } from 'react-native';
-import { NavigationContainer, RouteProp } from '@react-navigation/native';
-import { createNativeStackNavigator, NativeStackScreenProps } from '@react-navigation/native-stack';
+import { StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 
-import HomeScreen from './src/screens/HomeScreen';
-import AddTransactionScreen from './src/screens/AddTransactionScreen';
-import TransactionDetailScreen from './src/screens/TransactionDetailScreen';
-import WishlistScreen from './src/screens/WishlistScreen';
-import SettingsScreen from './src/screens/SettingsScreen';
-import Toast from 'react-native-toast-message'; 
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
+import { AuthProvider } from './src/contexts/AuthContext'; // Importa o provedor
+import Routes from './src/navigation'; // Importa nosso novo roteador principal
 
 export type RootStackParamList = {
   Home: undefined;
+  Auth: undefined;
   AddTransaction: { transactionId?: string };
-  // **CORREÇÃO**: Adicionar instanceDate para saber qual mês estamos vendo
   TransactionDetail: { transactionId: string; instanceDate?: string };
   Wishlist: undefined;
   Settings: undefined;
@@ -26,50 +20,21 @@ export type RootStackParamList = {
 
 export default function App() {
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <AuthProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Home">
-          <Stack.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="AddTransaction"
-            component={AddTransactionScreen}
-            options={({
-            route,
-            }: {
-              route: RouteProp<RootStackParamList, 'AddTransaction'>;
-            }) => ({
-              title: route.params?.transactionId ? 'Editar Lançamento' : 'Novo Lançamento',
-            })}
-          />
-          <Stack.Screen
-            name="TransactionDetail"
-            component={TransactionDetailScreen}
-            options={{ title: 'Detalhes do Lançamento' }}
-          />
-          <Stack.Screen
-            name="Wishlist"
-            component={WishlistScreen}
-            options={{ title: 'Minha Lista de Desejos' }}
-          />
-          <Stack.Screen 
-            name="Settings"
-            component={SettingsScreen}
-            options={{ title: 'Backup e Restauração' }}
-          />
-        </Stack.Navigator>
+        <SafeAreaView style={styles.safeArea}>
+          <StatusBar barStyle="light-content" backgroundColor="#007AFF" />
+          <Routes />
+        </SafeAreaView>
       </NavigationContainer>
       <Toast />
-    </SafeAreaView>
+    </AuthProvider>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f8f8', // Cor de fundo consistente
+    backgroundColor: '#f8f8f8',
   },
 });

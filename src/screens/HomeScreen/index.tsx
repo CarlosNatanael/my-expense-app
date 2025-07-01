@@ -74,14 +74,12 @@ const HomeScreen: React.FC = () => {
   const { income: totalIncome, totalPaidExpenses, totalPendingExpenses, balance } = calculateFinancialSummary(displayedTransactions);
 
   const handlePressTransactionItem = (transaction: Transaction) => {
-    // **CORREÇÃO**: Passa a data da instância para a tela de detalhes
     navigation.navigate('TransactionDetail', { 
         transactionId: transaction.id,
         instanceDate: transaction.date 
     });
   };
   
-  // ... (resto do componente HomeScreen, que já está correto)
   const formatMonth = (date: Date) => date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const handlePreviousMonth = () => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   const handleNextMonth = () => setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
@@ -89,7 +87,6 @@ const HomeScreen: React.FC = () => {
   const handleSelectFilter = (filter: FilterType) => setCurrentFilter(filter);
   const handleAddTransaction = () => navigation.navigate({ name: 'AddTransaction', params: {} });
   const handleGoToWishlist = () => navigation.navigate('Wishlist');
-  const handlePressAccountIcon = () => Alert.alert('Conta', 'Funcionalidade de conta/login será implementada no futuro.');
 
   return (
     <View style={styles.container}>
@@ -100,7 +97,6 @@ const HomeScreen: React.FC = () => {
         onPressNextMonth={handleNextMonth}
         onDateChange={handleDateSelected}
         selectedDate={currentDate}
-        onPressAccount={handlePressAccountIcon}
       />
       <SummaryCards
         totalIncome={totalIncome}
@@ -118,7 +114,7 @@ const HomeScreen: React.FC = () => {
       </View>
       <FlatList
         data={displayedTransactions}
-        keyExtractor={(item, index) => `${item.id}-${index}`} // Chave mais robusta para recorrências
+        keyExtractor={(item, index) => `${item.id}-${index}`}
         renderItem={({ item }) => (
           <TransactionListItem 
             transaction={item} 

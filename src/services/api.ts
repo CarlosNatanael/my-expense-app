@@ -1,13 +1,12 @@
 import { Alert } from 'react-native';
 
 // IMPORTANTE: Substitua pela URL do seu backend.
-// Se estiver testando no celular, use o IP da sua máquina na rede Wi-Fi.
-// NUNCA use 'localhost'. Ex: 'http://192.168.1.5:3001'
-const API_URL = 'http://SEU_IP_AQUI:3001';
+// Use o IP da sua máquina na rede Wi-Fi e a porta que o Flask está usando (5000).
+const API_URL = 'http://192.168.0.158:5000'; // <-- SUBSTITUA PELO SEU IP
 
 /**
  * Função base para fazer requisições fetch, tratando erros comuns.
- * @param endpoint A rota da API a ser chamada (ex: '/api/auth/login').
+ * @param endpoint A rota da API a ser chamada (ex: '/api/login').
  * @param options As opções da requisição (method, headers, body).
  * @returns A resposta em JSON.
  */
@@ -17,7 +16,7 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
-      },    
+      },
       ...options,
     });
 
@@ -25,7 +24,7 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
 
     if (!response.ok) {
       // Se a resposta não for OK, lança um erro com a mensagem do servidor
-      throw new Error(data.message || 'Ocorreu um erro no servidor.');
+      throw new Error(data.mensagem || 'Ocorreu um erro no servidor.');
     }
 
     return data;
@@ -35,6 +34,27 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     Alert.alert('Erro', error.message || 'Não foi possível conectar ao servidor. Verifique sua conexão.');
     throw error; // Propaga o erro para quem chamou a função
   }
+};
+
+// Defina o tipo Transaction conforme a estrutura dos dados retornados pelo backend
+export type Transaction = {
+  id: number;
+  descricao: string;
+  valor: number;
+  data: string;
+  // Adicione outros campos conforme necessário
+};
+
+export const getTransactionsFromServer = async (token: string): Promise<Transaction[]> => {
+  // O endpoint é '/api/gastos', como definido no seu backend Flask
+  const transactions = await apiFetch('/api/gastos', {
+    method: 'GET',
+    headers: {
+      // Envia o token para o backend para autenticação
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return transactions;
 };
 
 export default apiFetch;
