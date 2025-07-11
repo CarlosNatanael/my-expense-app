@@ -1,14 +1,11 @@
 import { Alert } from 'react-native';
+import { Transaction } from '../types'; // Importe o tipo Transaction
 
 // IMPORTANTE: Substitua pela URL do seu backend.
-// Use o IP da sua máquina na rede Wi-Fi e a porta que o Flask está usando (5000).
-const API_URL = 'http://192.168.0.158:5000'; // <-- SUBSTITUA PELO SEU IP
+const API_URL = 'http://192.168.0.158:5000'; // USE O SEU IP LOCAL
 
 /**
- * Função base para fazer requisições fetch, tratando erros comuns.
- * @param endpoint A rota da API a ser chamada (ex: '/api/login').
- * @param options As opções da requisição (method, headers, body).
- * @returns A resposta em JSON.
+ * Função base para fazer requisições fetch.
  */
 const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   try {
@@ -23,38 +20,48 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     const data = await response.json();
 
     if (!response.ok) {
-      // Se a resposta não for OK, lança um erro com a mensagem do servidor
       throw new Error(data.mensagem || 'Ocorreu um erro no servidor.');
     }
 
     return data;
   } catch (error: any) {
-    // Trata erros de conexão ou erros lançados acima
     console.error(`Erro na chamada da API para ${endpoint}:`, error);
-    Alert.alert('Erro', error.message || 'Não foi possível conectar ao servidor. Verifique sua conexão.');
-    throw error; // Propaga o erro para quem chamou a função
+    Alert.alert('Erro', error.message || 'Não foi possível conectar ao servidor.');
+    throw error;
   }
 };
 
-// Defina o tipo Transaction conforme a estrutura dos dados retornados pelo backend
-export type Transaction = {
-  id: number;
-  descricao: string;
-  valor: number;
-  data: string;
-  // Adicione outros campos conforme necessário
-};
+// --- NOVAS FUNÇÕES ---
 
+/**
+ * Busca as transações do usuário autenticado no servidor.
+ * @param token O token JWT do usuário.
+ * @returns Uma promessa que resolve para um array de transações.
+ */
 export const getTransactionsFromServer = async (token: string): Promise<Transaction[]> => {
-  // O endpoint é '/api/gastos', como definido no seu backend Flask
   const transactions = await apiFetch('/api/gastos', {
     method: 'GET',
     headers: {
-      // Envia o token para o backend para autenticação
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}` // Envia o token para autenticação
     }
   });
   return transactions;
+};
+
+/**
+ * Adiciona uma nova transação no servidor para o usuário autenticado.
+ * @param transactionData Os dados da transação a ser criada.
+ * @param token O token JWT do usuário.
+ */
+export const addTransactionToServer = async (transactionData: Partial<Transaction>, token: string): Promise<any> => {
+    const response = await apiFetch('/api/gastos', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(transactionData)
+    });
+    return response;
 };
 
 export default apiFetch;

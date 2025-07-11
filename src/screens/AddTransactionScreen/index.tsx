@@ -1,32 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../../App';
-import { Transaction, TransactionType, TransactionStatus } from '../../types';
-import { addTransactionToAsyncStorage, getTransactionsFromAsyncStorage, updateTransactionInAsyncStorage } from '../../data/transactions';
-import { v4 as uuidv4 } from 'uuid';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Platform, ActivityIndicator } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 
-// Tipando as props de rota
-type AddTransactionScreenRouteProp = RouteProp<RootStackParamList, 'AddTransaction'>;
-type AddTransactionScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddTransaction'>;
-
+import { useAuth } from '../../contexts/AuthContext';
+import { addTransactionToServer } from '../../services/api';
+import { TransactionType, TransactionStatus } from '../../types';
 
 const CATEGORIES = [
   'Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Educação',
   'Contas', 'Salário', 'Compras', 'Cartão', 'Outros', 'Esporte', 'Pets', 'Família'
 ];
 
-const INSTALLMENT_FREQUENCIES = ['monthly', 'bimonthly', 'quarterly', 'semiannual', 'yearly'];
-
 const AddTransactionScreen: React.FC = () => {
-  const navigation = useNavigation<AddTransactionScreenNavigationProp>();
-  const route = useRoute<AddTransactionScreenRouteProp>();
+  const navigation = useNavigation();
+  const { token } = useAuth(); // Pega o token do usuário logado
 
-  const [id, setId] = useState(uuidv4());
+  // Mantemos todos os seus estados para a UI
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -34,41 +26,11 @@ const AddTransactionScreen: React.FC = () => {
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [status, setStatus] = useState<TransactionStatus>('paid');
-
   const [frequency, setFrequency] = useState<'once' | 'installment' | 'monthly'>('once');
-  const [totalInstallments, setTotalInstallments] = useState('');
-  const [totalAmount, setTotalAmount] = useState('');
-  const [installmentFrequency, setInstallmentFrequency] = useState(INSTALLMENT_FREQUENCIES[0]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const loadTransactionForEdit = async () => {
-
-      if (route.params?.transactionId) {
-        const transactionToEdit = (await getTransactionsFromAsyncStorage()).find(t => t.id === route.params?.transactionId);
-        
-        if (transactionToEdit) {
-          setId(transactionToEdit.id);
-          setDescription(transactionToEdit.description);
-          setAmount(transactionToEdit.amount.toString().replace('.', ','));
-          setCategory(transactionToEdit.category);
-          setType(transactionToEdit.type);
-          setDate(new Date(transactionToEdit.date));
-          setFrequency(transactionToEdit.frequency);
-          setStatus(transactionToEdit.status);
-
-          if (transactionToEdit.frequency === 'installment') {
-            setTotalInstallments(transactionToEdit.totalInstallments?.toString() || '');
-            setTotalAmount(transactionToEdit.totalAmount?.toFixed(2).replace('.', ',') || '');
-            setInstallmentFrequency(transactionToEdit.installmentFrequency || INSTALLMENT_FREQUENCIES[0]);
-          }
-        } else {
-          Alert.alert('Erro', 'Lançamento não encontrado para edição.');
-          navigation.goBack();
-        }
-      }
-    };
-    loadTransactionForEdit();
-  }, [route.params?.transactionId, navigation]);
+  // A lógica de edição foi removida por enquanto, pois o backend ainda não tem essa rota.
+  // Focaremos em adicionar novos lançamentos.
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || date;
@@ -77,78 +39,49 @@ const AddTransactionScreen: React.FC = () => {
   };
 
   const handleSaveTransaction = async () => {
+    if (!token) {
+      return Alert.alert('Erro', 'Você precisa estar logado para adicionar uma transação.');
+    }
+
+    // Por enquanto, vamos conectar apenas a funcionalidade de transação 'Única'
+    if (frequency !== 'once') {
+        return Alert.alert('Em desenvolvimento', 'A funcionalidade de salvar parcelas e recorrências no servidor ainda está sendo construída.');
+    }
 
     const parsedAmount = parseFloat(amount.replace(',', '.'));
-
     if (!description || isNaN(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert('Erro', 'Preencha a descrição e um valor válido.');
-      return;
+      return Alert.alert('Erro', 'Preencha a descrição e um valor válido.');
     }
 
-    const formattedDate = date.toISOString().split('T')[0];
-
-    let transactionToSave: Transaction = {
-      id: uuidv4(),
-      // userId: userId, // REMOVER userId
-      description,
-      amount: parsedAmount,
-      date: formattedDate,
-      category,
-      type,
-      status: status,
-      frequency,
-    };
-
-    if (frequency === 'installment') {
-      const parsedTotalInstallments = parseInt(totalInstallments);
-      const parsedTotalAmount = parseFloat(totalAmount.replace(',', '.'));
-
-      if (isNaN(parsedTotalInstallments) || parsedTotalInstallments <= 0) {
-        Alert.alert('Erro', 'Preencha o número de parcelas válido.');
-        return;
-      }
-      if (isNaN(parsedTotalAmount) || parsedTotalAmount <= 0) {
-        Alert.alert('Erro', 'Preencha o valor total da compra válido.');
-        return;
-      }
-
-      transactionToSave = {
-        ...transactionToSave,
-        amount: parsedAmount,
-        totalAmount: parsedTotalAmount,
-        totalInstallments: parsedTotalInstallments,
-        currentInstallment: transactionToSave.currentInstallment || 1,
-        originalPurchaseDate: transactionToSave.originalPurchaseDate || formattedDate,
-        installmentGroupId: transactionToSave.installmentGroupId || uuidv4(),
-        installmentFrequency: installmentFrequency,
-      };
-    } else if (frequency === 'monthly') {
-      transactionToSave = {
-        ...transactionToSave,
-        startDate: transactionToSave.startDate || formattedDate,
-      };
-    }
-
+    setIsLoading(true);
     try {
-      if (route.params?.transactionId) {
-        const existingTransId = route.params.transactionId;
-        const updatedTransWithId: Transaction = { ...transactionToSave, id: existingTransId };
-        await updateTransactionInAsyncStorage(updatedTransWithId);
-        Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento atualizado com êxito.', visibilityTime: 2000, autoHide: true, topOffset: 30 });
-      } else {
-        await addTransactionToAsyncStorage(transactionToSave);
-        Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento salvo com êxito.', visibilityTime: 2000, autoHide: true, topOffset: 30 });
-      }
+      // O objeto enviado deve corresponder ao que o tipo Transaction espera
+      const transactionData = {
+        description: description,
+        amount: parsedAmount,
+        type: type,
+        date: date.toISOString().split('T')[0],
+        category: category,
+        status: status,
+        frequency: frequency,
+      };
+
+      await addTransactionToServer(transactionData, token);
+      
+      Toast.show({ type: 'success', text1: 'Sucesso!', text2: 'Lançamento salvo no servidor.' });
       navigation.goBack();
+
     } catch (error) {
-      console.error('Erro ao salvar/atualizar transação:', error);
-      Alert.alert('Erro', 'Não foi possível salvar/atualizar o lançamento.');
+      console.error("Erro ao salvar transação:", error);
+      // O alerta de erro já é mostrado pela nossa função `apiFetch`
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.title}>{route.params?.transactionId ? 'Editar Lançamento' : 'Novo Lançamento'}</Text>
+      <Text style={styles.title}>Novo Lançamento</Text>
 
       {/* Tipo de Lançamento (Receita/Despesa) */}
       <View style={styles.inputGroup}>
@@ -169,27 +102,6 @@ const AddTransactionScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Status (Pago / A Pagar) */}
-      {type === 'expense' && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Status da Despesa</Text>
-          <View style={styles.typeSelector}>
-            <TouchableOpacity
-              style={[styles.typeButton, status === 'paid' && styles.selectedTypeButton]}
-              onPress={() => setStatus('paid')}
-            >
-              <Text style={[styles.typeButtonText, status === 'paid' && styles.selectedTypeButtonText]}>Pago</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.typeButton, status === 'pending' && styles.selectedTypeButton]}
-              onPress={() => setStatus('pending')}
-            >
-              <Text style={[styles.typeButtonText, status === 'pending' && styles.selectedTypeButtonText]}>A Pagar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
       {/* Descrição */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Descrição</Text>
@@ -201,19 +113,17 @@ const AddTransactionScreen: React.FC = () => {
         />
       </View>
 
-      {/* Valor (Individual da Parcela, ou Único/Recorrente) */}
-      {frequency !== 'installment' && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Valor</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="R$ 0,00"
-            keyboardType="numeric"
-            value={amount}
-            onChangeText={text => setAmount(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
-          />
-        </View>
-      )}
+      {/* Valor */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Valor</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="R$ 0,00"
+          keyboardType="numeric"
+          value={amount}
+          onChangeText={text => setAmount(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
+        />
+      </View>
 
       {/* Categoria */}
       <View style={styles.inputGroup}>
@@ -223,7 +133,7 @@ const AddTransactionScreen: React.FC = () => {
             selectedValue={category}
             onValueChange={(itemValue: string) => setCategory(itemValue)}
             style={styles.picker}
-            itemStyle={styles.pickerItem}
+            mode="dropdown"
           >
             {CATEGORIES.map((cat) => (
               <Picker.Item key={cat} label={cat} value={cat} />
@@ -240,7 +150,6 @@ const AddTransactionScreen: React.FC = () => {
         </TouchableOpacity>
         {showDatePicker && (
           <DateTimePicker
-            testID="datePicker"
             value={date}
             mode="date"
             display="default"
@@ -273,66 +182,10 @@ const AddTransactionScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Campos Condicionais para Frequência */}
-      {frequency === 'installment' && (
-        <>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Valor da Parcela</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="R$ 0,00"
-              keyboardType="numeric"
-              value={amount}
-              onChangeText={text => setAmount(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Valor Total da Compra</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="R$ 0,00"
-              keyboardType="numeric"
-              value={totalAmount}
-              onChangeText={text => setTotalAmount(text.replace('.', ',').replace(/[^0-9,]/g, ''))}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Número de Parcelas</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: 12"
-              keyboardType="numeric"
-              value={totalInstallments}
-              onChangeText={text => setTotalInstallments(text.replace(/[^0-9]/g, ''))}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Frequência da Parcela</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={installmentFrequency}
-                onValueChange={(itemValue: string) => setInstallmentFrequency(itemValue)}
-                style={styles.picker}
-                itemStyle={styles.pickerItem}
-              >
-                {INSTALLMENT_FREQUENCIES.map((freq) => (
-                  <Picker.Item key={freq} label={
-                    freq === 'monthly' ? 'Mensal' :
-                    freq === 'bimonthly' ? 'Bimestral' :
-                    freq === 'quarterly' ? 'Trimestral' :
-                    freq === 'semiannual' ? 'Semestral' :
-                    freq === 'yearly' ? 'Anual' : freq
-                  } value={freq} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-        </>
-      )}
+      
       {/* Salvar Botão */}
-      <TouchableOpacity style={styles.saveButton} onPress={handleSaveTransaction}>
-        <Text style={styles.saveButtonText}>Salvar Lançamento</Text>
+      <TouchableOpacity style={styles.saveButton} onPress={handleSaveTransaction} disabled={isLoading}>
+        {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Salvar Lançamento</Text>}
       </TouchableOpacity>
 
       <View style={{ height: 50 }} />

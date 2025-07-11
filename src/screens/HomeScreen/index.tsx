@@ -1,63 +1,71 @@
-import React, { useState, useCallback } from 'react';
-import { StyleSheet, Text, View, FlatList, Alert, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { StyleSheet, Text, View, FlatList, ActivityIndicator } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
+import { TouchableOpacity } from 'react-native';
 
 import Header from '../../components/Header';
 import SummaryCards from '../../components/SummaryCards';
 import FilterTabs, { FilterType } from '../../components/FilterTabs';
 import TransactionListItem from '../../components/TransactionListItem';
 import { Transaction } from '../../types';
-import { getTransactionsFromAsyncStorage } from '../../data/transactions';
 import FloatingActionButton from '../../components/FloatingActionButton';
+
+// --- 1. Importar o contexto e os novos serviços ---
+import { useAuth } from '../../contexts/AuthContext';
+import { getTransactionsFromServer } from '../../services/api';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { token } = useAuth(); // 2. Pegar o token do usuário logado
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]); // Guarda todas as transações
+  const [displayedTransactions, setDisplayedTransactions] = useState<Transaction[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentFilter, setCurrentFilter] = useState<FilterType>('all');
-  const [displayedTransactions, setDisplayedTransactions] = useState<Transaction[]>([]);
   
-  const loadAndFilterTransactions = useCallback(async () => {
-    const allTransactions = await getTransactionsFromAsyncStorage();
+  // 3. A lógica de carregamento agora busca os dados do servidor
+  const loadTransactions = useCallback(async () => {
+    if (!token) return; // Se não há token, não faz nada
+
+    setIsLoading(true);
+    try {
+      const serverTransactions = await getTransactionsFromServer(token);
+      setAllTransactions(serverTransactions);
+    } catch (error) {
+        console.error("Falha ao buscar transações:", error);
+        setAllTransactions([]); // Em caso de erro, limpa a lista
+    } finally {
+        setIsLoading(false);
+    }
+  }, [token]);
+
+  // Filtra as transações sempre que a data ou o filtro mudar
+  useEffect(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
-    const transactionsForMonth = allTransactions.filter(t => {
-        if (t.frequency === 'once' || t.frequency === 'installment') {
-            const transactionDate = new Date(t.date);
-            return transactionDate.getFullYear() === year && transactionDate.getMonth() === month;
-        }
-        if (t.frequency === 'monthly') {
-            const startDate = new Date(t.startDate || t.date);
-            return startDate.getFullYear() < year || (startDate.getFullYear() === year && startDate.getMonth() <= month);
-        }
-        return false;
-    }).map(t => {
-        if (t.frequency === 'monthly') {
-            const dateForCurrentMonth = new Date(t.date);
-            dateForCurrentMonth.setFullYear(year);
-            dateForCurrentMonth.setMonth(month);
-            const monthKey = `${year}-${(month + 1).toString().padStart(2, '0')}`;
-            const isPaid = t.paidOccurrences?.includes(monthKey);
-            return { 
-                ...t, 
-                date: dateForCurrentMonth.toISOString(),
-                status: (isPaid ? 'paid' : 'pending') as Transaction['status']
-            };
-        }
-        return t;
-    });
-    
-    const filteredByTab = transactionsForMonth.filter(t => currentFilter === 'all' || t.type === currentFilter);
-    // Ordena as transações por data, da mais antiga para a mais nova.
-    filteredByTab.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    setDisplayedTransactions(filteredByTab);
-  }, [currentDate, currentFilter]);
+    const filtered = allTransactions
+      .filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getFullYear() === year && transactionDate.getMonth() === month;
+      })
+      .filter(t => currentFilter === 'all' || t.type === currentFilter);
+      
+    filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    setDisplayedTransactions(filtered);
+  }, [allTransactions, currentDate, currentFilter]);
   
-  useFocusEffect(useCallback(() => { loadAndFilterTransactions(); }, [loadAndFilterTransactions]));
+  // useFocusEffect é chamado toda vez que a tela entra em foco
+  useFocusEffect(
+    useCallback(() => {
+      loadTransactions();
+    }, [loadTransactions])
+  );
   
   const calculateFinancialSummary = useCallback((trans: Transaction[]) => {
     let income = 0, totalPaidExpenses = 0, totalPendingExpenses = 0;
