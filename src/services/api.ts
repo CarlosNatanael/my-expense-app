@@ -2,7 +2,7 @@ import { Alert } from 'react-native';
 import { Transaction } from '../types'; // Importe o tipo Transaction
 
 // IMPORTANTE: Substitua pela URL do seu backend.
-const API_URL = 'http://192.168.0.158:5000'; // USE O SEU IP LOCAL
+const API_URL = 'http://192.168.0.111:5000'; // USE O SEU IP LOCAL
 
 /**
  * Função base para fazer requisições fetch.
@@ -54,6 +54,11 @@ export const getTransactionsFromServer = async (token: string): Promise<Transact
  * @param token O token JWT do usuário.
  */
 export const addTransactionToServer = async (transactionData: Partial<Transaction>, token: string): Promise<any> => {
+  
+    console.log('--- TOKEN SENDO ENVIADO PARA /api/gastos ---');
+    console.log(token);
+    console.log('-------------------------------------------');
+
     const response = await apiFetch('/api/gastos', {
         method: 'POST',
         headers: {
